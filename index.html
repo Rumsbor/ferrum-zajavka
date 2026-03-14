@@ -1092,8 +1092,8 @@ function togglePriceView() {
 
 function updateHeaderDates() {
   // Используем даты из таблицы если есть, иначе считаем от сегодня
-  let backFrom = params.salesBackFrom || '';
-  let fwdTo = params.salesFwdTo || '';
+  let backFrom = parseServerDate(params.salesBackFrom);
+  let fwdTo = parseServerDate(params.salesFwdTo);
   if (!backFrom || !fwdTo) {
     const back = parseInt(document.getElementById('inp-daysBack').value) || params.salesDaysBack || 0;
     const fwd = parseInt(document.getElementById('inp-daysForward').value) || params.salesDaysForward || 0;
@@ -1111,12 +1111,20 @@ function formatDate(d) {
   return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear();
 }
 
+function parseServerDate(val) {
+  if (!val) return '';
+  if (typeof val === 'string' && val.match(/^\d{2}\.\d{2}\.\d{4}$/)) return val;
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return String(val);
+  return formatDate(d);
+}
+
 function updateDateHints() {
   // Даты из таблицы или рассчитанные
-  const backFrom = params.salesBackFrom || '';
-  const backTo = params.salesBackTo || '';
-  const fwdFrom = params.salesFwdFrom || '';
-  const fwdTo = params.salesFwdTo || '';
+  const backFrom = parseServerDate(params.salesBackFrom);
+  const backTo = parseServerDate(params.salesBackTo);
+  const fwdFrom = parseServerDate(params.salesFwdFrom);
+  const fwdTo = parseServerDate(params.salesFwdTo);
   if (backFrom && backTo && fwdFrom && fwdTo) {
     document.getElementById('dateHints').innerHTML =
       '<span>' + backFrom + ' — ' + backTo + '</span>' +
