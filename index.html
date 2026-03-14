@@ -118,7 +118,13 @@ body {
   padding: 4px 16px 8px;
   font-size: 11px; color: var(--text2);
   display: flex; justify-content: space-between;
+  align-items: baseline; gap: 8px;
 }
+#infoWarehouses {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0; flex: 1; text-align: right;
+}
+#infoCount { white-space: nowrap; }
 
 /* Items List */
 .list {
