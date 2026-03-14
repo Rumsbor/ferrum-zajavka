@@ -549,7 +549,7 @@ body {
     <div class="stat"><div class="stat-val green" id="s-ordered">-</div><div class="stat-lbl">к заказу</div></div>
     <div class="stat"><div class="stat-val cyan" id="s-volume">-</div><div class="stat-lbl">м&sup3;</div></div>
     <div class="stat"><div class="stat-val orange" id="s-weight">-</div><div class="stat-lbl">кг</div></div>
-    <div class="stat"><div class="stat-val" id="s-price" style="color:var(--green);font-size:13px">-</div><div class="stat-lbl" id="s-price-lbl">&#8381; скидка</div></div>
+    <div class="stat" onclick="togglePriceView()" style="cursor:pointer"><div class="stat-val" id="s-price" style="color:var(--green);font-size:13px">-</div><div class="stat-lbl" id="s-price-lbl">&#8381; скидка</div></div>
   </div>
   <div class="search-wrap">
     <span class="search-icon">&#128269;</span>
@@ -630,6 +630,7 @@ let filteredData = [];
 let currentFilter = 'all';
 let params = {};
 let discount = 42; // скидка от РРЦ в %
+let showDiscounted = true; // true = со скидкой, false = РРЦ
 
 // === LOAD DATA ===
 async function loadData() {
@@ -749,8 +750,13 @@ function updateSummary() {
   const discountedPrice = Math.round(totPrice * (1 - discount / 100));
   document.getElementById('s-volume').textContent = totVol.toFixed(1);
   document.getElementById('s-weight').textContent = Math.round(totWt);
-  document.getElementById('s-price').textContent = discountedPrice.toLocaleString('ru-RU');
-  document.getElementById('s-price-lbl').innerHTML = '&#8381; -' + discount + '%';
+  if (showDiscounted) {
+    document.getElementById('s-price').textContent = discountedPrice.toLocaleString('ru-RU');
+    document.getElementById('s-price-lbl').innerHTML = '&#8381; -' + discount + '%';
+  } else {
+    document.getElementById('s-price').textContent = totPrice.toLocaleString('ru-RU');
+    document.getElementById('s-price-lbl').innerHTML = '&#8381; РРЦ';
+  }
 
   if (params.warehouses && params.warehouses.length > 0) {
     document.getElementById('infoWarehouses').textContent = params.warehouses.join(', ');
@@ -1076,6 +1082,11 @@ function hideEmptyWhChanged() {
 
 function updateDiscount() {
   discount = parseInt(document.getElementById('inp-discount').value) || 0;
+  updateSummary();
+}
+
+function togglePriceView() {
+  showDiscounted = !showDiscounted;
   updateSummary();
 }
 
