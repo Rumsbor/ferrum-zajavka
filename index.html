@@ -319,6 +319,117 @@ body {
 .toast.show { opacity: 1; }
 .toast.success { background: #16341c; color: var(--green); border: 1px solid #22c55e40; }
 .toast.error { background: #3b1515; color: var(--red); border: 1px solid #ef444440; }
+
+/* Settings Panel */
+.settings-btn {
+  background: none; border: 1px solid var(--border);
+  color: var(--text2); border-radius: 8px;
+  padding: 6px 10px; font-size: 16px; cursor: pointer;
+  transition: all 0.2s; line-height: 1;
+}
+.settings-btn:active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.settings-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.settings-panel {
+  display: none;
+  padding: 0 16px 8px;
+}
+.settings-panel.open { display: block; }
+.settings-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+.settings-title {
+  font-size: 12px; font-weight: 600;
+  color: var(--accent); margin-bottom: 10px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.settings-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px;
+}
+.settings-row:last-child { margin-bottom: 0; }
+.settings-label {
+  font-size: 13px; color: var(--text2);
+  white-space: nowrap; min-width: 100px;
+}
+.settings-input {
+  width: 70px; padding: 6px 8px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-size: 16px; font-weight: 700;
+  text-align: center; outline: none;
+  -moz-appearance: textfield;
+}
+.settings-input::-webkit-outer-spin-button,
+.settings-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.settings-input:focus { border-color: var(--accent); }
+.settings-apply {
+  padding: 6px 16px;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 8px;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.settings-apply:active { opacity: 0.7; }
+.settings-apply.saving { animation: pulse 0.5s infinite; }
+
+/* Warehouses */
+.wh-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.wh-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 12px; color: var(--text2);
+}
+.wh-item.active {
+  background: rgba(59,130,246,0.1);
+  border-color: var(--accent);
+  color: var(--text);
+}
+.wh-check {
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 11px; color: transparent;
+  transition: all 0.2s;
+}
+.wh-item.active .wh-check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.wh-name {
+  overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-section { margin-top: 12px; }
+.settings-recalc {
+  margin-top: 10px; width: 100%;
+  padding: 10px;
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  color: #fff; border: none; border-radius: 10px;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer;
+}
+.settings-recalc:active { opacity: 0.7; }
+.settings-recalc.saving { animation: pulse 0.5s infinite; }
+.settings-hint {
+  font-size: 11px; color: var(--text2);
+  margin-top: 6px; text-align: center;
+}
 </style>
 </head>
 <body>
@@ -331,9 +442,12 @@ body {
 <div class="header">
   <div class="header-top">
     <div class="logo">Ferrum <span>| Заявка</span></div>
-    <button class="refresh-btn" onclick="loadData()" id="refreshBtn">
-      <span id="refreshIcon">&#8635;</span> Обновить
-    </button>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="settings-btn" id="settingsBtn" onclick="toggleSettings()">&#9881;</button>
+      <button class="refresh-btn" onclick="loadData()" id="refreshBtn">
+        <span id="refreshIcon">&#8635;</span> Обновить
+      </button>
+    </div>
   </div>
   <div class="summary" id="summary">
     <div class="stat"><div class="stat-val" id="s-items">-</div><div class="stat-lbl">позиций</div></div>
@@ -344,6 +458,29 @@ body {
   <div class="search-wrap">
     <span class="search-icon">&#128269;</span>
     <input type="text" class="search" id="search" placeholder="Поиск по названию или артикулу..." oninput="applyFilters()">
+  </div>
+</div>
+
+<div class="settings-panel" id="settingsPanel">
+  <div class="settings-card">
+    <div class="settings-title">Параметры продаж</div>
+    <div class="settings-row">
+      <span class="settings-label">Дни назад</span>
+      <input type="number" class="settings-input" id="inp-daysBack" value="-" min="1" max="730">
+      <span class="settings-label">Дни вперёд</span>
+      <input type="number" class="settings-input" id="inp-daysForward" value="-" min="1" max="365">
+      <button class="settings-apply" id="applyParamsBtn" onclick="applyParams()">OK</button>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">Склады</div>
+      <div class="wh-grid" id="whGrid">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <button class="settings-recalc" id="recalcBtn" onclick="recalculate()">Пересчитать заявку</button>
+    <div class="settings-hint">После изменения параметров или складов нажмите «Пересчитать»</div>
   </div>
 </div>
 
@@ -382,7 +519,7 @@ body {
 
 <script>
 // === CONFIG ===
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyPoR_oq_VpDarA5BDmRUuRNBfRKX8SEU9MbU9Cx2NWZHZnPrZBuJdOb5ZI6yo4sLUM-A/exec';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzKy2dGPRKUWnHXEgVqVk_m3OfT_TSiOP0DvFAdQCe0WWYpeKVsTKtSCOoiR3pFG2rJwQ/exec';
 const SHEET_ID = '1ETqyDhB5Uh4tcmCX8uidtyNhleMSGIjRZ9snOacO-Gk';
 
 let allData = [];
@@ -421,6 +558,7 @@ async function loadData() {
       allData = data.rows;
       params = data.params || {};
       renderAll();
+      renderSettings();
     }
   } catch (err) {
     console.error('Load error:', err);
@@ -708,6 +846,156 @@ function updateBottomBar() {
   document.getElementById('b-total').textContent = totalPrice.toLocaleString('ru-RU') + ' \u20BD';
   document.getElementById('b-vol').textContent = totalVol.toFixed(2);
   document.getElementById('b-wt').textContent = Math.round(totalWt);
+}
+
+// === SETTINGS ===
+function toggleSettings() {
+  const panel = document.getElementById('settingsPanel');
+  const btn = document.getElementById('settingsBtn');
+  panel.classList.toggle('open');
+  btn.classList.toggle('active');
+}
+
+function renderSettings() {
+  // Days inputs
+  document.getElementById('inp-daysBack').value = params.salesDaysBack || '';
+  document.getElementById('inp-daysForward').value = params.salesDaysForward || '';
+
+  // Warehouses
+  const grid = document.getElementById('whGrid');
+  const allWh = params.allWarehouses || [];
+  if (allWh.length === 0) {
+    grid.innerHTML = '<div style="color:var(--text2);font-size:12px;grid-column:1/-1">Данные о складах недоступны</div>';
+    return;
+  }
+  let html = '';
+  for (let w = 0; w < allWh.length; w++) {
+    const wh = allWh[w];
+    html += `<div class="wh-item ${wh.active ? 'active' : ''}" data-row="${wh.row}" data-idx="${w}" onclick="toggleWarehouse(this)">
+      <div class="wh-check">${wh.active ? '&#10003;' : ''}</div>
+      <div class="wh-name">${wh.name}</div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function toggleWarehouse(el) {
+  el.classList.toggle('active');
+  const isActive = el.classList.contains('active');
+  el.querySelector('.wh-check').innerHTML = isActive ? '&#10003;' : '';
+}
+
+async function applyParams() {
+  const btn = document.getElementById('applyParamsBtn');
+  const daysBack = document.getElementById('inp-daysBack').value.trim();
+  const daysForward = document.getElementById('inp-daysForward').value.trim();
+
+  if (!daysBack || !daysForward || isNaN(daysBack) || isNaN(daysForward)) {
+    showToast('Введите корректные числа', 'error');
+    return;
+  }
+
+  btn.classList.add('saving');
+  btn.textContent = '...';
+
+  try {
+    const resp = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'setParams',
+        salesDaysBack: Number(daysBack),
+        salesDaysForward: Number(daysForward)
+      }),
+      redirect: 'follow'
+    });
+
+    let result;
+    try { result = await resp.json(); } catch(e) { result = null; }
+
+    if (result && result.ok) {
+      params.salesDaysBack = result.params.salesDaysBack;
+      params.salesDaysForward = result.params.salesDaysForward;
+      showToast('Параметры сохранены', 'success');
+    } else {
+      showToast('Сохранено (ожидайте пересчёта)', 'success');
+    }
+  } catch (err) {
+    console.error('Params error:', err);
+    showToast('Ошибка сохранения параметров', 'error');
+  }
+
+  btn.classList.remove('saving');
+  btn.textContent = 'OK';
+}
+
+async function saveWarehouses() {
+  const items = document.querySelectorAll('.wh-item');
+  const changes = [];
+  items.forEach(el => {
+    changes.push({
+      row: parseInt(el.dataset.row),
+      active: el.classList.contains('active')
+    });
+  });
+
+  try {
+    const resp = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'setWarehouses', warehouses: changes }),
+      redirect: 'follow'
+    });
+
+    let result;
+    try { result = await resp.json(); } catch(e) { result = null; }
+
+    if (result && result.ok) {
+      params.allWarehouses = result.warehouses;
+      params.warehouses = result.warehouses.filter(w => w.active).map(w => w.name);
+      updateSummary();
+      showToast('Склады обновлены', 'success');
+    } else {
+      showToast('Склады отправлены', 'success');
+    }
+  } catch (err) {
+    console.error('Warehouses error:', err);
+    showToast('Ошибка сохранения складов', 'error');
+  }
+}
+
+async function recalculate() {
+  const btn = document.getElementById('recalcBtn');
+  btn.classList.add('saving');
+  btn.textContent = 'Пересчёт...';
+
+  // First save warehouses
+  await saveWarehouses();
+
+  // Then recalculate
+  try {
+    const resp = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'recalculate' }),
+      redirect: 'follow'
+    });
+
+    let result;
+    try { result = await resp.json(); } catch(e) { result = null; }
+
+    if (result && result.ok) {
+      showToast('Заявка пересчитана! Загружаю...', 'success');
+    } else {
+      showToast('Запрос отправлен, загружаю...', 'success');
+    }
+  } catch (err) {
+    console.error('Recalc error:', err);
+    showToast('Ошибка пересчёта', 'error');
+  }
+
+  btn.classList.remove('saving');
+  btn.textContent = 'Пересчитать заявку';
+
+  // Reload data
+  await loadData();
 }
 
 // === INIT ===
