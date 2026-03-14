@@ -347,19 +347,25 @@ body {
   text-transform: uppercase; letter-spacing: 0.5px;
 }
 .settings-row {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
   margin-bottom: 10px;
 }
 .settings-row:last-child { margin-bottom: 0; }
+.settings-pair {
+  display: flex; align-items: center; gap: 6px;
+  flex: 1; min-width: 0;
+}
 .settings-label {
-  font-size: 13px; color: var(--text2);
-  white-space: nowrap; min-width: 100px;
+  font-size: 12px; color: var(--text2);
+  white-space: nowrap;
 }
 .settings-input {
-  width: 70px; padding: 6px 8px;
+  width: 60px; flex-shrink: 0;
+  padding: 6px 4px;
   background: var(--bg); border: 1px solid var(--border);
   border-radius: 8px; color: var(--text);
-  font-size: 16px; font-weight: 700;
+  font-size: 15px; font-weight: 700;
   text-align: center; outline: none;
   -moz-appearance: textfield;
 }
@@ -367,7 +373,7 @@ body {
 .settings-input::-webkit-inner-spin-button { -webkit-appearance: none; }
 .settings-input:focus { border-color: var(--accent); }
 .settings-apply {
-  padding: 6px 16px;
+  padding: 6px 14px; flex-shrink: 0;
   background: var(--accent); color: #fff;
   border: none; border-radius: 8px;
   font-size: 13px; font-weight: 600;
@@ -379,18 +385,22 @@ body {
 /* Warehouses */
 .wh-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+@media (max-width: 380px) {
+  .wh-grid { grid-template-columns: 1fr; }
 }
 .wh-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 6px 10px;
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px;
   background: rgba(255,255,255,0.03);
   border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  font-size: 12px; color: var(--text2);
+  font-size: 11px; color: var(--text2);
+  min-width: 0;
 }
 .wh-item.active {
   background: rgba(59,130,246,0.1);
@@ -465,10 +475,14 @@ body {
   <div class="settings-card">
     <div class="settings-title">Параметры продаж</div>
     <div class="settings-row">
-      <span class="settings-label">Дни назад</span>
-      <input type="number" class="settings-input" id="inp-daysBack" value="-" min="1" max="730">
-      <span class="settings-label">Дни вперёд</span>
-      <input type="number" class="settings-input" id="inp-daysForward" value="-" min="1" max="365">
+      <div class="settings-pair">
+        <span class="settings-label">Назад</span>
+        <input type="number" class="settings-input" id="inp-daysBack" value="-" min="1" max="730">
+      </div>
+      <div class="settings-pair">
+        <span class="settings-label">Вперёд</span>
+        <input type="number" class="settings-input" id="inp-daysForward" value="-" min="1" max="365">
+      </div>
       <button class="settings-apply" id="applyParamsBtn" onclick="applyParams()">OK</button>
     </div>
 
