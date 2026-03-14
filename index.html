@@ -568,12 +568,12 @@ body {
     <div class="settings-card">
       <button class="settings-close" onclick="toggleSettings()">&times;</button>
       <div class="settings-title">Параметры продаж</div>
-      <div class="settings-row">
-        <div class="settings-pair">
+      <div class="settings-row" style="justify-content:space-between">
+        <div class="settings-pair" style="flex:0 0 auto">
           <span class="settings-label">Назад</span>
           <input type="number" class="settings-input" id="inp-daysBack" value="-" min="1" max="730" oninput="updateDateHints()">
         </div>
-        <div class="settings-pair">
+        <div class="settings-pair" style="flex:0 0 auto">
           <span class="settings-label">Вперёд</span>
           <input type="number" class="settings-input" id="inp-daysForward" value="-" min="1" max="365" oninput="updateDateHints()">
         </div>
@@ -937,7 +937,7 @@ function renderBreakdown(i) {
   rows.forEach(function(row) {
     totStock += row.stock; totMin += row.min; totSales += row.sales;
     const allZero = row.stock === 0 && row.min === 0 && row.sales === 0;
-    if (hideEmptyWarehouses && allZero) return;
+    if (hideEmptyWarehouses && (allZero || row.off)) return;
     const cls = row.off ? 'wh-row-off' : (allZero ? 'wh-row-zero' : '');
     html += '<tr class="' + cls + '">' +
       '<td>' + row.name + (row.off ? ' (выкл)' : '') + '</td>' +
