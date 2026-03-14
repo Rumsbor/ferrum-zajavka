@@ -1091,13 +1091,20 @@ function togglePriceView() {
 }
 
 function updateHeaderDates() {
-  const back = parseInt(document.getElementById('inp-daysBack').value) || params.salesDaysBack || 0;
-  const fwd = parseInt(document.getElementById('inp-daysForward').value) || params.salesDaysForward || 0;
-  const today = new Date();
-  const from = new Date(today); from.setDate(from.getDate() - back);
-  const to = new Date(today); to.setDate(to.getDate() + fwd);
+  // Используем даты из таблицы если есть, иначе считаем от сегодня
+  let backFrom = params.salesBackFrom || '';
+  let fwdTo = params.salesFwdTo || '';
+  if (!backFrom || !fwdTo) {
+    const back = parseInt(document.getElementById('inp-daysBack').value) || params.salesDaysBack || 0;
+    const fwd = parseInt(document.getElementById('inp-daysForward').value) || params.salesDaysForward || 0;
+    const today = new Date();
+    const from = new Date(today); from.setDate(from.getDate() - back);
+    const to = new Date(today); to.setDate(to.getDate() + fwd);
+    backFrom = backFrom || formatDate(from);
+    fwdTo = fwdTo || formatDate(to);
+  }
   document.getElementById('headerDates').innerHTML =
-    '&#9668; ' + formatDate(from) + '<br>&#9658; ' + formatDate(to);
+    '&#9668; ' + backFrom + '<br>&#9658; ' + fwdTo;
 }
 
 function formatDate(d) {
@@ -1105,6 +1112,18 @@ function formatDate(d) {
 }
 
 function updateDateHints() {
+  // Даты из таблицы или рассчитанные
+  const backFrom = params.salesBackFrom || '';
+  const backTo = params.salesBackTo || '';
+  const fwdFrom = params.salesFwdFrom || '';
+  const fwdTo = params.salesFwdTo || '';
+  if (backFrom && backTo && fwdFrom && fwdTo) {
+    document.getElementById('dateHints').innerHTML =
+      '<span>' + backFrom + ' — ' + backTo + '</span>' +
+      '<span>' + fwdFrom + ' — ' + fwdTo + '</span>';
+    updateHeaderDates();
+    return;
+  }
   const back = parseInt(document.getElementById('inp-daysBack').value) || 0;
   const fwd = parseInt(document.getElementById('inp-daysForward').value) || 0;
   const today = new Date();
