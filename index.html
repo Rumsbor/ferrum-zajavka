@@ -214,6 +214,79 @@ body {
 .val-cyan { color: var(--cyan); }
 .val-purple { color: var(--purple); }
 
+/* Clickable detail cells */
+.detail-cell.clickable {
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+}
+.detail-cell.clickable:active {
+  background: rgba(59,130,246,0.15);
+}
+.detail-cell.clickable .lbl::after {
+  content: ' \25BE';
+  opacity: 0.4;
+  font-size: 9px;
+}
+.detail-cell.clickable.open .lbl::after {
+  content: ' \25B4';
+}
+
+/* Warehouse breakdown panel */
+.wh-breakdown {
+  display: none;
+  margin-top: 6px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  animation: fadeIn 0.15s ease;
+}
+.wh-breakdown.open { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.wh-bd-title {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.wh-bd-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 12px;
+}
+.wh-bd-row + .wh-bd-row {
+  border-top: 1px solid rgba(255,255,255,0.03);
+}
+.wh-bd-name {
+  color: var(--text2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: 8px;
+}
+.wh-bd-val {
+  font-weight: 600;
+  flex-shrink: 0;
+  min-width: 30px;
+  text-align: right;
+}
+.wh-bd-total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 5px;
+  margin-top: 5px;
+  border-top: 1px solid var(--border);
+  font-weight: 700;
+  font-size: 12px;
+}
+.wh-bd-zero { opacity: 0.3; }
+
 /* Bottom totals bar */
 .bottom-bar {
   position: fixed; bottom: 0; left: 0; right: 0;
@@ -533,7 +606,7 @@ body {
 
 <script>
 // === CONFIG ===
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzKy2dGPRKUWnHXEgVqVk_m3OfT_TSiOP0DvFAdQCe0WWYpeKVsTKtSCOoiR3pFG2rJwQ/exec';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbw2L0h69wYtIrdpGt6VlfbzKQhjsh0fx_KKIGU7hkOafBC7aNh0Hg0GkhkmF6TMnuK1jw/exec';
 const SHEET_ID = '1ETqyDhB5Uh4tcmCX8uidtyNhleMSGIjRZ9snOacO-Gk';
 
 let allData = [];
@@ -730,15 +803,16 @@ function renderList() {
       </div>
       <div class="item-detail">
         <div class="detail-grid">
-          <div class="detail-cell"><div class="val ${isLow ? 'val-red' : 'val-green'}">${r.stock}</div><div class="lbl">Остаток</div></div>
-          <div class="detail-cell"><div class="val val-orange">${r.minStock}</div><div class="lbl">Мин. ост.</div></div>
-          <div class="detail-cell"><div class="val val-blue">${r.sales}</div><div class="lbl">Продажи</div></div>
+          <div class="detail-cell clickable" id="dc-stock-${i}" onclick="event.stopPropagation(); toggleBreakdown(${i},'stock')"><div class="val ${isLow ? 'val-red' : 'val-green'}">${r.stock}</div><div class="lbl">Остаток</div></div>
+          <div class="detail-cell clickable" id="dc-min-${i}" onclick="event.stopPropagation(); toggleBreakdown(${i},'min')"><div class="val val-orange">${r.minStock}</div><div class="lbl">Мин. ост.</div></div>
+          <div class="detail-cell clickable" id="dc-sales-${i}" onclick="event.stopPropagation(); toggleBreakdown(${i},'sales')"><div class="val val-blue">${r.sales}</div><div class="lbl">Продажи</div></div>
           <div class="detail-cell"><div class="val val-purple">${r.yearAgo}</div><div class="lbl">Год назад</div></div>
           <div class="detail-cell"><div class="val" style="color:#fff;font-size:18px;font-weight:800" id="order-${i}">${r.order}</div><div class="lbl">Заказ</div></div>
           <div class="detail-cell"><div class="val" style="color:var(--text2)" id="vol-${i}">${r.volume ? r.volume.toFixed(3) : '0'}</div><div class="lbl">Объем м&sup3;</div></div>
           <div class="detail-cell"><div class="val" style="color:var(--text2)" id="wt-${i}">${r.weight ? r.weight.toFixed(1) : '0'}</div><div class="lbl">Вес кг</div></div>
           <div class="detail-cell"><div class="val val-green" id="prc-${i}">${r.price ? r.price.toLocaleString('ru-RU') : '0'}</div><div class="lbl">РРЦ</div></div>
         </div>
+        <div class="wh-breakdown" id="whbd-${i}"></div>
         <div class="manual-edit">
           <label>Ручн:</label>
           <input type="number" class="manual-input" id="manual-${i}" value="${manualVal}" placeholder="-" data-art="${r.art}" data-idx="${globalIdx}" onclick="event.stopPropagation()">
@@ -752,10 +826,92 @@ function renderList() {
 }
 
 function toggleItem(index, event) {
-  // Don't toggle if clicking on input/button inside manual-edit
+  // Don't toggle if clicking on input/button inside manual-edit or clickable detail cells
   if (event && event.target.closest && event.target.closest('.manual-edit')) return;
+  if (event && event.target.closest && event.target.closest('.detail-cell.clickable')) return;
+  if (event && event.target.closest && event.target.closest('.wh-breakdown')) return;
   const el = document.getElementById('item-' + index);
   el.classList.toggle('expanded');
+  // Close breakdown when collapsing
+  if (!el.classList.contains('expanded')) {
+    const bd = document.getElementById('whbd-' + index);
+    if (bd) { bd.classList.remove('open'); bd.innerHTML = ''; }
+    document.querySelectorAll(`#item-${index} .detail-cell.clickable`).forEach(c => c.classList.remove('open'));
+  }
+}
+
+function toggleBreakdown(i, metric) {
+  const bd = document.getElementById('whbd-' + i);
+  const r = filteredData[i];
+  if (!r) return;
+
+  // Toggle off if same metric clicked again
+  if (bd.classList.contains('open') && bd.dataset.metric === metric) {
+    bd.classList.remove('open');
+    bd.innerHTML = '';
+    document.getElementById('dc-' + metric + '-' + i)?.classList.remove('open');
+    return;
+  }
+
+  // Remove open state from other cells
+  document.querySelectorAll(`#item-${i} .detail-cell.clickable`).forEach(c => c.classList.remove('open'));
+  document.getElementById('dc-' + metric + '-' + i)?.classList.add('open');
+
+  bd.dataset.metric = metric;
+
+  let data, title, colorClass;
+  const warehouses = params.warehouses || [];
+
+  switch (metric) {
+    case 'stock':
+      data = r.stockByWh || {};
+      title = 'Остаток по складам';
+      colorClass = 'val-green';
+      break;
+    case 'min':
+      data = r.minByWh || {};
+      title = 'Мин. остаток по складам';
+      colorClass = 'val-orange';
+      break;
+    case 'sales':
+      data = r.salesByWh || {};
+      title = 'Продажи по складам';
+      colorClass = 'val-blue';
+      break;
+    default: return;
+  }
+
+  let total = 0;
+  let html = '<div class="wh-bd-title">' + title + '</div>';
+
+  warehouses.forEach(function(wh) {
+    const val = data[wh] || 0;
+    total += val;
+    const zeroClass = val === 0 ? ' wh-bd-zero' : '';
+    html += '<div class="wh-bd-row' + zeroClass + '">' +
+      '<span class="wh-bd-name">' + wh + '</span>' +
+      '<span class="wh-bd-val ' + colorClass + '">' + val + '</span>' +
+      '</div>';
+  });
+
+  // Check for values in non-selected warehouses
+  const allWh = params.allWarehouses || [];
+  allWh.forEach(function(w) {
+    if (!w.active && data[w.name]) {
+      html += '<div class="wh-bd-row" style="opacity:0.4">' +
+        '<span class="wh-bd-name">' + w.name + ' (выкл)</span>' +
+        '<span class="wh-bd-val ' + colorClass + '">' + data[w.name] + '</span>' +
+        '</div>';
+    }
+  });
+
+  html += '<div class="wh-bd-total">' +
+    '<span>Итого</span>' +
+    '<span class="' + colorClass + '">' + total + '</span>' +
+    '</div>';
+
+  bd.innerHTML = html;
+  bd.classList.add('open');
 }
 
 // === MANUAL EDIT ===
