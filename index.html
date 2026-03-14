@@ -232,7 +232,7 @@ body {
   content: ' \25B4';
 }
 
-/* Warehouse breakdown panel */
+/* Warehouse breakdown table */
 .wh-breakdown {
   display: none;
   margin-top: 6px;
@@ -241,51 +241,48 @@ body {
   border-radius: 8px;
   padding: 8px 10px;
   animation: fadeIn 0.15s ease;
+  overflow-x: auto;
 }
 .wh-breakdown.open { display: block; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-.wh-bd-title {
-  font-size: 11px;
+.wh-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.wh-table th {
+  font-size: 10px;
   color: var(--accent);
   font-weight: 600;
-  margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+  padding: 3px 6px;
+  text-align: right;
+  white-space: nowrap;
 }
-.wh-bd-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 3px 0;
-  font-size: 12px;
+.wh-table th:first-child { text-align: left; }
+.wh-table td {
+  padding: 3px 6px;
+  text-align: right;
+  font-weight: 600;
+  white-space: nowrap;
 }
-.wh-bd-row + .wh-bd-row {
-  border-top: 1px solid rgba(255,255,255,0.03);
-}
-.wh-bd-name {
+.wh-table td:first-child {
+  text-align: left;
   color: var(--text2);
+  font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  margin-right: 8px;
+  max-width: 120px;
 }
-.wh-bd-val {
-  font-weight: 600;
-  flex-shrink: 0;
-  min-width: 30px;
-  text-align: right;
-}
-.wh-bd-total {
-  display: flex;
-  justify-content: space-between;
-  padding-top: 5px;
-  margin-top: 5px;
+.wh-table tr + tr td { border-top: 1px solid rgba(255,255,255,0.03); }
+.wh-table tr.wh-row-zero td { opacity: 0.3; }
+.wh-table tr.wh-row-total td {
   border-top: 1px solid var(--border);
+  padding-top: 5px;
   font-weight: 700;
-  font-size: 12px;
 }
-.wh-bd-zero { opacity: 0.3; }
+.wh-table tr.wh-row-off td { opacity: 0.4; }
 
 /* Bottom totals bar */
 .bottom-bar {
@@ -803,9 +800,9 @@ function renderList() {
       </div>
       <div class="item-detail">
         <div class="detail-grid">
-          <div class="detail-cell clickable" id="dc-stock-${i}" onclick="event.stopPropagation(); toggleBreakdown(${i},'stock')"><div class="val ${isLow ? 'val-red' : 'val-green'}">${r.stock}</div><div class="lbl">Остаток</div></div>
-          <div class="detail-cell clickable" id="dc-min-${i}" onclick="event.stopPropagation(); toggleBreakdown(${i},'min')"><div class="val val-orange">${r.minStock}</div><div class="lbl">Мин. ост.</div></div>
-          <div class="detail-cell clickable" id="dc-sales-${i}" onclick="event.stopPropagation(); toggleBreakdown(${i},'sales')"><div class="val val-blue">${r.sales}</div><div class="lbl">Продажи</div></div>
+          <div class="detail-cell clickable" id="dc-wh-${i}" onclick="event.stopPropagation(); toggleBreakdown(${i})"><div class="val ${isLow ? 'val-red' : 'val-green'}">${r.stock}</div><div class="lbl">Остаток</div></div>
+          <div class="detail-cell clickable" onclick="event.stopPropagation(); toggleBreakdown(${i})"><div class="val val-orange">${r.minStock}</div><div class="lbl">Мин. ост.</div></div>
+          <div class="detail-cell clickable" onclick="event.stopPropagation(); toggleBreakdown(${i})"><div class="val val-blue">${r.sales}</div><div class="lbl">Продажи</div></div>
           <div class="detail-cell"><div class="val val-purple">${r.yearAgo}</div><div class="lbl">Год назад</div></div>
           <div class="detail-cell"><div class="val" style="color:#fff;font-size:18px;font-weight:800" id="order-${i}">${r.order}</div><div class="lbl">Заказ</div></div>
           <div class="detail-cell"><div class="val" style="color:var(--text2)" id="vol-${i}">${r.volume ? r.volume.toFixed(3) : '0'}</div><div class="lbl">Объем м&sup3;</div></div>
@@ -836,79 +833,71 @@ function toggleItem(index, event) {
   if (!el.classList.contains('expanded')) {
     const bd = document.getElementById('whbd-' + index);
     if (bd) { bd.classList.remove('open'); bd.innerHTML = ''; }
-    document.querySelectorAll(`#item-${index} .detail-cell.clickable`).forEach(c => c.classList.remove('open'));
+    document.querySelectorAll('#item-' + index + ' .detail-cell.clickable').forEach(function(c) { c.classList.remove('open'); });
   }
 }
 
-function toggleBreakdown(i, metric) {
+function toggleBreakdown(i) {
   const bd = document.getElementById('whbd-' + i);
   const r = filteredData[i];
   if (!r) return;
 
-  // Toggle off if same metric clicked again
-  if (bd.classList.contains('open') && bd.dataset.metric === metric) {
+  // Toggle off/on
+  if (bd.classList.contains('open')) {
     bd.classList.remove('open');
     bd.innerHTML = '';
-    document.getElementById('dc-' + metric + '-' + i)?.classList.remove('open');
+    document.querySelectorAll('#item-' + i + ' .detail-cell.clickable').forEach(function(c) { c.classList.remove('open'); });
     return;
   }
 
-  // Remove open state from other cells
-  document.querySelectorAll(`#item-${i} .detail-cell.clickable`).forEach(c => c.classList.remove('open'));
-  document.getElementById('dc-' + metric + '-' + i)?.classList.add('open');
+  document.querySelectorAll('#item-' + i + ' .detail-cell.clickable').forEach(function(c) { c.classList.add('open'); });
 
-  bd.dataset.metric = metric;
-
-  let data, title, colorClass;
   const warehouses = params.warehouses || [];
+  const stockData = r.stockByWh || {};
+  const minData = r.minByWh || {};
+  const salesData = r.salesByWh || {};
 
-  switch (metric) {
-    case 'stock':
-      data = r.stockByWh || {};
-      title = 'Остаток по складам';
-      colorClass = 'val-green';
-      break;
-    case 'min':
-      data = r.minByWh || {};
-      title = 'Мин. остаток по складам';
-      colorClass = 'val-orange';
-      break;
-    case 'sales':
-      data = r.salesByWh || {};
-      title = 'Продажи по складам';
-      colorClass = 'val-blue';
-      break;
-    default: return;
-  }
+  let totStock = 0, totMin = 0, totSales = 0;
 
-  let total = 0;
-  let html = '<div class="wh-bd-title">' + title + '</div>';
+  let html = '<table class="wh-table"><thead><tr>' +
+    '<th>Склад</th><th>Ост.</th><th>Мин.</th><th>Прод.</th>' +
+    '</tr></thead><tbody>';
 
   warehouses.forEach(function(wh) {
-    const val = data[wh] || 0;
-    total += val;
-    const zeroClass = val === 0 ? ' wh-bd-zero' : '';
-    html += '<div class="wh-bd-row' + zeroClass + '">' +
-      '<span class="wh-bd-name">' + wh + '</span>' +
-      '<span class="wh-bd-val ' + colorClass + '">' + val + '</span>' +
-      '</div>';
+    const sv = stockData[wh] || 0;
+    const mv = minData[wh] || 0;
+    const slv = salesData[wh] || 0;
+    totStock += sv; totMin += mv; totSales += slv;
+    const allZero = sv === 0 && mv === 0 && slv === 0;
+    html += '<tr class="' + (allZero ? 'wh-row-zero' : '') + '">' +
+      '<td>' + wh + '</td>' +
+      '<td class="val-green">' + sv + '</td>' +
+      '<td class="val-orange">' + mv + '</td>' +
+      '<td class="val-blue">' + slv + '</td>' +
+      '</tr>';
   });
 
-  // Check for values in non-selected warehouses
+  // Non-selected warehouses with data
   const allWh = params.allWarehouses || [];
   allWh.forEach(function(w) {
-    if (!w.active && data[w.name]) {
-      html += '<div class="wh-bd-row" style="opacity:0.4">' +
-        '<span class="wh-bd-name">' + w.name + ' (выкл)</span>' +
-        '<span class="wh-bd-val ' + colorClass + '">' + data[w.name] + '</span>' +
-        '</div>';
+    if (!w.active && (stockData[w.name] || minData[w.name] || salesData[w.name])) {
+      html += '<tr class="wh-row-off">' +
+        '<td>' + w.name + ' (выкл)</td>' +
+        '<td class="val-green">' + (stockData[w.name] || 0) + '</td>' +
+        '<td class="val-orange">' + (minData[w.name] || 0) + '</td>' +
+        '<td class="val-blue">' + (salesData[w.name] || 0) + '</td>' +
+        '</tr>';
     }
   });
 
-  html += '<div class="wh-bd-total">' +
-    '<span>Итого</span>' +
-    '<span class="' + colorClass + '">' + total + '</span>' +
-    '</div>';
+  html += '<tr class="wh-row-total">' +
+    '<td>Итого</td>' +
+    '<td class="val-green">' + totStock + '</td>' +
+    '<td class="val-orange">' + totMin + '</td>' +
+    '<td class="val-blue">' + totSales + '</td>' +
+    '</tr>';
+
+  html += '</tbody></table>';
 
   bd.innerHTML = html;
   bd.classList.add('open');
