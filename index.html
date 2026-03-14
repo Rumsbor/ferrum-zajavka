@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Ferrum | Заявка</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --card: #1a1d27;
+  --card-order: #1a2332;
+  --border: #2a2d3a;
+  --text: #e4e4e7;
+  --text2: #9ca3af;
+  --accent: #3b82f6;
+  --green: #22c55e;
+  --red: #ef4444;
+  --orange: #f59e0b;
+  --cyan: #06b6d4;
+  --purple: #a855f7;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Header */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: linear-gradient(135deg, #1a1d27 0%, #1e2233 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  backdrop-filter: blur(10px);
+}
+.header-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.logo {
+  font-size: 18px; font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.logo span { font-weight: 400; opacity: 0.7; }
+.refresh-btn {
+  background: none; border: 1px solid var(--border);
+  color: var(--text2); border-radius: 8px;
+  padding: 6px 12px; font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; gap: 4px;
+  transition: all 0.2s;
+}
+.refresh-btn:active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.refresh-btn.loading { animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* Summary Cards */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.stat {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 8px;
+  text-align: center;
+}
+.stat-val {
+  font-size: 16px; font-weight: 700;
+  color: var(--accent);
+}
+.stat-val.green { color: var(--green); }
+.stat-val.orange { color: var(--orange); }
+.stat-val.cyan { color: var(--cyan); }
+.stat-val.purple { color: var(--purple); }
+.stat-lbl {
+  font-size: 10px; color: var(--text2);
+  margin-top: 2px;
+}
+
+/* Search */
+.search-wrap {
+  position: relative;
+}
+.search {
+  width: 100%; padding: 8px 12px 8px 34px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text);
+  font-size: 14px; outline: none;
+}
+.search:focus { border-color: var(--accent); }
+.search-icon {
+  position: absolute; left: 10px; top: 50%;
+  transform: translateY(-50%); color: var(--text2); font-size: 14px;
+}
+
+/* Filters */
+.filters {
+  display: flex; gap: 6px; padding: 8px 16px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.filters::-webkit-scrollbar { display: none; }
+.filter-btn {
+  flex-shrink: 0; padding: 6px 14px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 20px; color: var(--text2);
+  font-size: 12px; cursor: pointer; white-space: nowrap;
+  transition: all 0.2s;
+}
+.filter-btn.active {
+  background: var(--accent); color: #fff;
+  border-color: var(--accent);
+}
+
+/* Info bar */
+.info-bar {
+  padding: 4px 16px 8px;
+  font-size: 11px; color: var(--text2);
+  display: flex; justify-content: space-between;
+}
+
+/* Items List */
+.list {
+  padding: 0 12px 100px;
+}
+
+/* Item Card */
+.item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+.item.has-order {
+  background: var(--card-order);
+  border-color: #2a4060;
+}
+.item-main {
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.item-order-badge {
+  min-width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700;
+  background: #1e293b; color: var(--text2);
+}
+.item.has-order .item-order-badge {
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  color: #fff;
+}
+.item-info { flex: 1; min-width: 0; }
+.item-name {
+  font-size: 13px; font-weight: 500;
+  line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.item-art {
+  font-size: 11px; color: var(--text2); margin-top: 2px;
+}
+.item-indicators {
+  display: flex; gap: 6px; margin-top: 4px;
+}
+.ind {
+  font-size: 11px; padding: 1px 6px;
+  border-radius: 4px; font-weight: 500;
+}
+.ind-stock { background: #16341c; color: var(--green); }
+.ind-low { background: #3b1515; color: var(--red); }
+.ind-sales { background: #1a2040; color: var(--accent); }
+.ind-yearago { background: #2d1f3d; color: var(--purple); }
+
+/* Expanded detail */
+.item-detail {
+  display: none;
+  padding: 0 12px 10px;
+  border-top: 1px solid var(--border);
+}
+.item.expanded .item-detail { display: block; padding-top: 10px; }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.detail-cell {
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  padding: 6px 8px;
+  text-align: center;
+}
+.detail-cell .val {
+  font-size: 15px; font-weight: 600;
+}
+.detail-cell .lbl {
+  font-size: 10px; color: var(--text2); margin-top: 1px;
+}
+.val-green { color: var(--green); }
+.val-red { color: var(--red); }
+.val-blue { color: var(--accent); }
+.val-orange { color: var(--orange); }
+.val-cyan { color: var(--cyan); }
+.val-purple { color: var(--purple); }
+
+/* Bottom totals bar */
+.bottom-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(0deg, #1a1d27 80%, transparent);
+  padding: 20px 16px 16px;
+  z-index: 100;
+}
+.bottom-inner {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex; justify-content: space-around;
+}
+.btm-stat { text-align: center; }
+.btm-val { font-size: 14px; font-weight: 700; }
+.btm-lbl { font-size: 10px; color: var(--text2); }
+
+/* Loading */
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 16px;
+}
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { color: var(--text2); font-size: 14px; }
+
+/* Sort indicator */
+.sort-active { color: var(--accent) !important; }
+
+/* No results */
+.no-results {
+  text-align: center; padding: 40px 20px;
+  color: var(--text2);
+}
+.no-results-icon { font-size: 40px; margin-bottom: 10px; }
+
+/* Manual badge */
+.manual-badge {
+  font-size: 10px; background: #3b2814;
+  color: var(--orange); padding: 1px 5px;
+  border-radius: 3px; font-weight: 600;
+}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text">Загрузка данных...</div>
+</div>
+
+<div class="header">
+  <div class="header-top">
+    <div class="logo">Ferrum <span>| Заявка</span></div>
+    <button class="refresh-btn" onclick="loadData()" id="refreshBtn">
+      <span id="refreshIcon">&#8635;</span> Обновить
+    </button>
+  </div>
+  <div class="summary" id="summary">
+    <div class="stat"><div class="stat-val" id="s-items">-</div><div class="stat-lbl">позиций</div></div>
+    <div class="stat"><div class="stat-val green" id="s-ordered">-</div><div class="stat-lbl">к заказу</div></div>
+    <div class="stat"><div class="stat-val cyan" id="s-volume">-</div><div class="stat-lbl">м&sup3;</div></div>
+    <div class="stat"><div class="stat-val orange" id="s-weight">-</div><div class="stat-lbl">кг</div></div>
+  </div>
+  <div class="search-wrap">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" class="search" id="search" placeholder="Поиск по названию или артикулу..." oninput="applyFilters()">
+  </div>
+</div>
+
+<div class="filters" id="filtersBar">
+  <button class="filter-btn active" data-filter="all" onclick="setFilter(this)">Все</button>
+  <button class="filter-btn" data-filter="ordered" onclick="setFilter(this)">К заказу</button>
+  <button class="filter-btn" data-filter="manual" onclick="setFilter(this)">Ручные</button>
+  <button class="filter-btn" data-filter="low" onclick="setFilter(this)">Дефицит</button>
+  <button class="filter-btn" data-filter="surplus" onclick="setFilter(this)">Излишки</button>
+</div>
+
+<div class="info-bar">
+  <span id="infoCount">-</span>
+  <span id="infoWarehouses">-</span>
+</div>
+
+<div class="list" id="list"></div>
+
+<div class="bottom-bar">
+  <div class="bottom-inner">
+    <div class="btm-stat">
+      <div class="btm-val val-blue" id="b-total">-</div>
+      <div class="btm-lbl">Сумма РРЦ</div>
+    </div>
+    <div class="btm-stat">
+      <div class="btm-val val-cyan" id="b-vol">-</div>
+      <div class="btm-lbl">Объем, м&sup3;</div>
+    </div>
+    <div class="btm-stat">
+      <div class="btm-val val-orange" id="b-wt">-</div>
+      <div class="btm-lbl">Вес, кг</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// === CONFIG ===
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxjG-DY07i0Kzm-IjCRbMyQUtSR-pLTqmKnjWLAvQMfqmhXsZYBFEley6_tH79dwsQEeA/exec';
+const SHEET_ID = '1ETqyDhB5Uh4tcmCX8uidtyNhleMSGIjRZ9snOacO-Gk';
+
+let allData = [];
+let filteredData = [];
+let currentFilter = 'all';
+let params = {};
+
+// === LOAD DATA ===
+async function loadData() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('loading');
+
+  try {
+    let data;
+
+    // Try Web App first
+    if (WEBAPP_URL) {
+      const resp = await fetch(WEBAPP_URL + '?action=order');
+      data = await resp.json();
+    } else {
+      // Try local data.json (for preview / local use)
+      try {
+        const localResp = await fetch('./data.json');
+        if (localResp.ok) {
+          data = await localResp.json();
+        }
+      } catch(e) {}
+
+      // If no local data, try Google Visualization API
+      if (!data) {
+        data = await loadFromGViz();
+      }
+    }
+
+    if (data && data.rows) {
+      allData = data.rows;
+      params = data.params || {};
+      renderAll();
+    }
+  } catch (err) {
+    console.error('Load error:', err);
+    document.getElementById('list').innerHTML =
+      '<div class="no-results"><div class="no-results-icon">&#9888;</div>Ошибка загрузки данных<br><small style="color:#666">Проверьте доступ к таблице</small></div>';
+  }
+
+  btn.classList.remove('loading');
+  document.getElementById('loading').style.display = 'none';
+}
+
+// === Load from Google Visualization API ===
+async function loadFromGViz() {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=%D0%97%D0%B0%D1%8F%D0%B2%D0%BA%D0%B0`;
+  const resp = await fetch(url);
+  let text = await resp.text();
+  // Strip JSONP wrapper: "google.visualization.Query.setResponse({...})"
+  text = text.replace(/^[^(]*\(/, '').replace(/\);?\s*$/, '');
+  const json = JSON.parse(text);
+
+  const rows = [];
+  const table = json.table;
+  for (let i = 1; i < table.rows.length; i++) {
+    const r = table.rows[i];
+    const c = r.c;
+    if (!c[0] || !c[0].v) continue;
+    rows.push({
+      name: c[0] ? c[0].v : '',
+      art: c[1] ? c[1].v : '',
+      stock: c[2] ? (c[2].v || 0) : 0,
+      minStock: c[3] ? (c[3].v || 0) : 0,
+      sales: c[4] ? (c[4].v || 0) : 0,
+      yearAgo: c[5] ? (c[5].v || 0) : 0,
+      order: c[6] ? (c[6].v || 0) : 0,
+      volume: c[7] ? (c[7].v || 0) : 0,
+      weight: c[8] ? (c[8].v || 0) : 0,
+      price: c[9] ? (c[9].v || 0) : 0,
+      manual: c[10] ? c[10].v : null
+    });
+  }
+
+  // Also load params
+  const purl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=%D0%9F%D0%B0%D1%80%D0%B0%D0%BC%D0%B5%D1%82%D1%80%D1%8B`;
+  try {
+    const presp = await fetch(purl);
+    let ptext = await presp.text();
+    ptext = ptext.replace(/^[^(]*\(/, '').replace(/\);?\s*$/, '');
+    const pjson = JSON.parse(ptext);
+    const pt = pjson.table;
+
+    const wh = [];
+    for (let i = 1; i <= 10; i++) {
+      if (pt.rows[i] && pt.rows[i].c[4] && pt.rows[i].c[4].v === true) {
+        wh.push(pt.rows[i].c[3] ? pt.rows[i].c[3].v : '');
+      }
+    }
+    return {
+      rows: rows,
+      params: {
+        warehouses: wh,
+        salesDaysBack: pt.rows[13] && pt.rows[13].c[1] ? pt.rows[13].c[1].v : '',
+        balanceDate: pt.rows[11] && pt.rows[11].c[1] ? (pt.rows[11].c[1].f || pt.rows[11].c[1].v) : '',
+        totalRows: pt.rows[6] && pt.rows[6].c[1] ? pt.rows[6].c[1].v : ''
+      }
+    };
+  } catch(e) {
+    return { rows: rows, params: { warehouses: [] } };
+  }
+}
+
+// === RENDER ===
+function renderAll() {
+  applyFilters();
+  updateSummary();
+}
+
+function updateSummary() {
+  const ordered = allData.filter(r => r.order > 0);
+  document.getElementById('s-items').textContent = allData.length;
+  document.getElementById('s-ordered').textContent = ordered.length;
+
+  const totVol = ordered.reduce((s, r) => s + (r.volume || 0), 0);
+  const totWt = ordered.reduce((s, r) => s + (r.weight || 0), 0);
+  document.getElementById('s-volume').textContent = totVol.toFixed(1);
+  document.getElementById('s-weight').textContent = Math.round(totWt);
+
+  if (params.warehouses && params.warehouses.length > 0) {
+    document.getElementById('infoWarehouses').textContent = params.warehouses.join(', ');
+  }
+}
+
+function applyFilters() {
+  const q = document.getElementById('search').value.toLowerCase().trim();
+
+  filteredData = allData.filter(r => {
+    // Search
+    if (q && !r.name.toLowerCase().includes(q) && !r.art.toLowerCase().includes(q)) return false;
+
+    // Filter
+    switch (currentFilter) {
+      case 'ordered': return r.order > 0;
+      case 'manual': return r.manual !== null && r.manual !== undefined && r.manual !== '';
+      case 'low': return r.stock < r.minStock;
+      case 'surplus': return r.stock > r.minStock * 2 && r.minStock > 0;
+      default: return true;
+    }
+  });
+
+  document.getElementById('infoCount').textContent =
+    `${filteredData.length} из ${allData.length} позиций`;
+
+  renderList();
+  updateBottomBar();
+}
+
+function setFilter(el) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  currentFilter = el.dataset.filter;
+  applyFilters();
+}
+
+function renderList() {
+  const container = document.getElementById('list');
+  if (filteredData.length === 0) {
+    container.innerHTML = '<div class="no-results"><div class="no-results-icon">&#128270;</div>Ничего не найдено</div>';
+    return;
+  }
+
+  let html = '';
+  for (let i = 0; i < filteredData.length; i++) {
+    const r = filteredData[i];
+    const hasOrder = r.order > 0;
+    const isLow = r.stock < r.minStock;
+    const hasManual = r.manual !== null && r.manual !== undefined && r.manual !== '';
+
+    // Short name: remove "Ф " prefix and clean up
+    const shortName = r.name.replace(/^Ф\s+/, '');
+
+    html += `<div class="item ${hasOrder ? 'has-order' : ''}" id="item-${i}" onclick="toggleItem(${i})">
+      <div class="item-main">
+        <div class="item-order-badge">${hasOrder ? r.order : '0'}</div>
+        <div class="item-info">
+          <div class="item-name">${shortName}</div>
+          <div class="item-art">${r.art}${hasManual ? ' <span class="manual-badge">РУЧН.</span>' : ''}</div>
+          <div class="item-indicators">
+            <span class="ind ${isLow ? 'ind-low' : 'ind-stock'}">${isLow ? '&#9660;' : '&#9650;'} ${r.stock}/${r.minStock}</span>
+            <span class="ind ind-sales">&#8594; ${r.sales}</span>
+            ${r.yearAgo > 0 ? `<span class="ind ind-yearago">&#8635; ${r.yearAgo}</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="item-detail">
+        <div class="detail-grid">
+          <div class="detail-cell"><div class="val ${isLow ? 'val-red' : 'val-green'}">${r.stock}</div><div class="lbl">Остаток</div></div>
+          <div class="detail-cell"><div class="val val-orange">${r.minStock}</div><div class="lbl">Мин. ост.</div></div>
+          <div class="detail-cell"><div class="val val-blue">${r.sales}</div><div class="lbl">Продажи</div></div>
+          <div class="detail-cell"><div class="val val-purple">${r.yearAgo}</div><div class="lbl">Год назад</div></div>
+          <div class="detail-cell"><div class="val" style="color:#fff;font-size:18px;font-weight:800">${r.order}</div><div class="lbl">Заказ</div></div>
+          <div class="detail-cell"><div class="val val-cyan">${hasManual ? r.manual : '-'}</div><div class="lbl">Ручн.</div></div>
+          <div class="detail-cell"><div class="val" style="color:var(--text2)">${r.volume ? r.volume.toFixed(3) : '0'}</div><div class="lbl">Объем м&sup3;</div></div>
+          <div class="detail-cell"><div class="val" style="color:var(--text2)">${r.weight ? r.weight.toFixed(1) : '0'}</div><div class="lbl">Вес кг</div></div>
+          <div class="detail-cell"><div class="val val-green">${r.price ? r.price.toLocaleString('ru-RU') : '0'}</div><div class="lbl">РРЦ</div></div>
+        </div>
+      </div>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+function toggleItem(index) {
+  const el = document.getElementById('item-' + index);
+  el.classList.toggle('expanded');
+}
+
+function updateBottomBar() {
+  const ordered = filteredData.filter(r => r.order > 0);
+  const totalPrice = ordered.reduce((s, r) => s + (r.price || 0), 0);
+  const totalVol = ordered.reduce((s, r) => s + (r.volume || 0), 0);
+  const totalWt = ordered.reduce((s, r) => s + (r.weight || 0), 0);
+
+  document.getElementById('b-total').textContent = totalPrice.toLocaleString('ru-RU') + ' \u20BD';
+  document.getElementById('b-vol').textContent = totalVol.toFixed(2);
+  document.getElementById('b-wt').textContent = Math.round(totalWt);
+}
+
+// === INIT ===
+loadData();
+</script>
+</body>
+</html>
