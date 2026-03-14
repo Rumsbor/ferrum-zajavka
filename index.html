@@ -266,6 +266,59 @@ body {
   color: var(--orange); padding: 1px 5px;
   border-radius: 3px; font-weight: 600;
 }
+
+/* Editable manual field */
+.manual-edit {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 8px; padding: 8px;
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.3);
+  border-radius: 10px;
+}
+.manual-edit label {
+  font-size: 12px; color: var(--orange); font-weight: 600;
+  white-space: nowrap;
+}
+.manual-input {
+  flex: 1; padding: 6px 10px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-size: 16px; font-weight: 700;
+  text-align: center; outline: none;
+  -moz-appearance: textfield;
+}
+.manual-input::-webkit-outer-spin-button,
+.manual-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.manual-input:focus { border-color: var(--orange); }
+.manual-save {
+  padding: 6px 14px;
+  background: var(--orange); color: #000;
+  border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer;
+}
+.manual-save:active { opacity: 0.7; }
+.manual-save.saving { animation: pulse 0.5s infinite; }
+.manual-clear {
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.05); color: var(--text2);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 12px; cursor: pointer;
+}
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 80px; left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px; border-radius: 10px;
+  font-size: 13px; font-weight: 500;
+  z-index: 300; opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; }
+.toast.success { background: #16341c; color: var(--green); border: 1px solid #22c55e40; }
+.toast.error { background: #3b1515; color: var(--red); border: 1px solid #ef444440; }
 </style>
 </head>
 <body>
@@ -308,6 +361,7 @@ body {
 </div>
 
 <div class="list" id="list"></div>
+<div class="toast" id="toast"></div>
 
 <div class="bottom-bar">
   <div class="bottom-inner">
@@ -328,7 +382,7 @@ body {
 
 <script>
 // === CONFIG ===
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxjG-DY07i0Kzm-IjCRbMyQUtSR-pLTqmKnjWLAvQMfqmhXsZYBFEley6_tH79dwsQEeA/exec';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyPoR_oq_VpDarA5BDmRUuRNBfRKX8SEU9MbU9Cx2NWZHZnPrZBuJdOb5ZI6yo4sLUM-A/exec';
 const SHEET_ID = '1ETqyDhB5Uh4tcmCX8uidtyNhleMSGIjRZ9snOacO-Gk';
 
 let allData = [];
@@ -506,9 +560,12 @@ function renderList() {
     // Short name: remove "Ф " prefix and clean up
     const shortName = r.name.replace(/^Ф\s+/, '');
 
-    html += `<div class="item ${hasOrder ? 'has-order' : ''}" id="item-${i}" onclick="toggleItem(${i})">
+    const globalIdx = allData.indexOf(r);
+    const manualVal = hasManual ? r.manual : '';
+
+    html += `<div class="item ${hasOrder ? 'has-order' : ''}" id="item-${i}" onclick="toggleItem(${i}, event)">
       <div class="item-main">
-        <div class="item-order-badge">${hasOrder ? r.order : '0'}</div>
+        <div class="item-order-badge" id="badge-${i}">${hasOrder ? r.order : '0'}</div>
         <div class="item-info">
           <div class="item-name">${shortName}</div>
           <div class="item-art">${r.art}${hasManual ? ' <span class="manual-badge">РУЧН.</span>' : ''}</div>
@@ -525,11 +582,16 @@ function renderList() {
           <div class="detail-cell"><div class="val val-orange">${r.minStock}</div><div class="lbl">Мин. ост.</div></div>
           <div class="detail-cell"><div class="val val-blue">${r.sales}</div><div class="lbl">Продажи</div></div>
           <div class="detail-cell"><div class="val val-purple">${r.yearAgo}</div><div class="lbl">Год назад</div></div>
-          <div class="detail-cell"><div class="val" style="color:#fff;font-size:18px;font-weight:800">${r.order}</div><div class="lbl">Заказ</div></div>
-          <div class="detail-cell"><div class="val val-cyan">${hasManual ? r.manual : '-'}</div><div class="lbl">Ручн.</div></div>
-          <div class="detail-cell"><div class="val" style="color:var(--text2)">${r.volume ? r.volume.toFixed(3) : '0'}</div><div class="lbl">Объем м&sup3;</div></div>
-          <div class="detail-cell"><div class="val" style="color:var(--text2)">${r.weight ? r.weight.toFixed(1) : '0'}</div><div class="lbl">Вес кг</div></div>
-          <div class="detail-cell"><div class="val val-green">${r.price ? r.price.toLocaleString('ru-RU') : '0'}</div><div class="lbl">РРЦ</div></div>
+          <div class="detail-cell"><div class="val" style="color:#fff;font-size:18px;font-weight:800" id="order-${i}">${r.order}</div><div class="lbl">Заказ</div></div>
+          <div class="detail-cell"><div class="val" style="color:var(--text2)" id="vol-${i}">${r.volume ? r.volume.toFixed(3) : '0'}</div><div class="lbl">Объем м&sup3;</div></div>
+          <div class="detail-cell"><div class="val" style="color:var(--text2)" id="wt-${i}">${r.weight ? r.weight.toFixed(1) : '0'}</div><div class="lbl">Вес кг</div></div>
+          <div class="detail-cell"><div class="val val-green" id="prc-${i}">${r.price ? r.price.toLocaleString('ru-RU') : '0'}</div><div class="lbl">РРЦ</div></div>
+        </div>
+        <div class="manual-edit">
+          <label>Ручн:</label>
+          <input type="number" class="manual-input" id="manual-${i}" value="${manualVal}" placeholder="-" data-art="${r.art}" data-idx="${globalIdx}" onclick="event.stopPropagation()">
+          <button class="manual-save" id="savebtn-${i}" onclick="event.stopPropagation(); saveManual(${i})">OK</button>
+          <button class="manual-clear" onclick="event.stopPropagation(); clearManual(${i})">X</button>
         </div>
       </div>
     </div>`;
@@ -537,9 +599,104 @@ function renderList() {
   container.innerHTML = html;
 }
 
-function toggleItem(index) {
+function toggleItem(index, event) {
+  // Don't toggle if clicking on input/button inside manual-edit
+  if (event && event.target.closest && event.target.closest('.manual-edit')) return;
   const el = document.getElementById('item-' + index);
   el.classList.toggle('expanded');
+}
+
+// === MANUAL EDIT ===
+async function saveManual(i) {
+  const input = document.getElementById('manual-' + i);
+  const btn = document.getElementById('savebtn-' + i);
+  const art = input.dataset.art;
+  const globalIdx = parseInt(input.dataset.idx);
+  const value = input.value.trim();
+
+  if (value === '' || isNaN(Number(value))) {
+    showToast('Введите число', 'error');
+    return;
+  }
+
+  btn.classList.add('saving');
+  btn.textContent = '...';
+
+  try {
+    const resp = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'setManual', art: art, value: Number(value) }),
+      redirect: 'follow'
+    });
+
+    let result;
+    try { result = await resp.json(); } catch(e) { result = null; }
+
+    if (result && result.ok && result.row) {
+      // Update local data with recalculated values from server
+      allData[globalIdx].manual = result.row.manual;
+      allData[globalIdx].order = result.row.order;
+      allData[globalIdx].volume = result.row.volume;
+      allData[globalIdx].weight = result.row.weight;
+      allData[globalIdx].price = result.row.price;
+      showToast('Сохранено: ' + art + ' = ' + value, 'success');
+      renderAll();
+    } else {
+      // Optimistic update if response unreadable
+      allData[globalIdx].manual = Number(value);
+      showToast('Отправлено: ' + art + ' = ' + value, 'success');
+      setTimeout(() => loadData(), 2000);
+    }
+  } catch (err) {
+    console.error('Save error:', err);
+    showToast('Ошибка сохранения', 'error');
+  }
+
+  btn.classList.remove('saving');
+  btn.textContent = 'OK';
+}
+
+async function clearManual(i) {
+  const input = document.getElementById('manual-' + i);
+  const art = input.dataset.art;
+  const globalIdx = parseInt(input.dataset.idx);
+
+  try {
+    const resp = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'setManual', art: art, value: '' }),
+      redirect: 'follow'
+    });
+
+    let result;
+    try { result = await resp.json(); } catch(e) { result = null; }
+
+    if (result && result.ok && result.row) {
+      allData[globalIdx].manual = null;
+      allData[globalIdx].order = result.row.order;
+      allData[globalIdx].volume = result.row.volume;
+      allData[globalIdx].weight = result.row.weight;
+      allData[globalIdx].price = result.row.price;
+      input.value = '';
+      showToast('Очищено: ' + art, 'success');
+      renderAll();
+    } else {
+      allData[globalIdx].manual = null;
+      input.value = '';
+      showToast('Очищено: ' + art, 'success');
+      setTimeout(() => loadData(), 2000);
+    }
+  } catch (err) {
+    console.error('Clear error:', err);
+    showToast('Ошибка очистки', 'error');
+  }
+}
+
+function showToast(msg, type) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast ' + type + ' show';
+  setTimeout(() => { toast.classList.remove('show'); }, 2500);
 }
 
 function updateBottomBar() {
