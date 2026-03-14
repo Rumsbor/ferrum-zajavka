@@ -500,6 +500,13 @@ body {
   overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap;
 }
+.settings-dates {
+  font-size: 11px; color: var(--text2);
+  margin-top: 4px;
+  display: flex; justify-content: space-between;
+  gap: 8px;
+}
+.settings-dates span { white-space: nowrap; }
 .settings-toggle {
   display: flex; align-items: center; gap: 8px;
   margin-top: 10px; padding: 6px 0;
@@ -564,14 +571,14 @@ body {
       <div class="settings-row">
         <div class="settings-pair">
           <span class="settings-label">Назад</span>
-          <input type="number" class="settings-input" id="inp-daysBack" value="-" min="1" max="730">
+          <input type="number" class="settings-input" id="inp-daysBack" value="-" min="1" max="730" oninput="updateDateHints()">
         </div>
         <div class="settings-pair">
           <span class="settings-label">Вперёд</span>
-          <input type="number" class="settings-input" id="inp-daysForward" value="-" min="1" max="365">
+          <input type="number" class="settings-input" id="inp-daysForward" value="-" min="1" max="365" oninput="updateDateHints()">
         </div>
-        <button class="settings-apply" id="applyParamsBtn" onclick="applyParams()">OK</button>
       </div>
+      <div class="settings-dates" id="dateHints"></div>
 
       <div class="settings-section">
         <div class="settings-title">Склады</div>
@@ -1060,6 +1067,21 @@ function hideEmptyWhChanged() {
   hideEmptyWarehouses = document.getElementById('hideEmptyWh').checked;
 }
 
+function formatDate(d) {
+  return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear();
+}
+
+function updateDateHints() {
+  const back = parseInt(document.getElementById('inp-daysBack').value) || 0;
+  const fwd = parseInt(document.getElementById('inp-daysForward').value) || 0;
+  const today = new Date();
+  const from = new Date(today); from.setDate(from.getDate() - back);
+  const to = new Date(today); to.setDate(to.getDate() + fwd);
+  document.getElementById('dateHints').innerHTML =
+    '<span>' + formatDate(from) + ' — ' + formatDate(today) + '</span>' +
+    '<span>' + formatDate(today) + ' — ' + formatDate(to) + '</span>';
+}
+
 function renderSettings() {
   // Days inputs
   document.getElementById('inp-daysBack').value = params.salesDaysBack || '';
@@ -1081,6 +1103,7 @@ function renderSettings() {
     </div>`;
   }
   grid.innerHTML = html;
+  updateDateHints();
 }
 
 function toggleWarehouse(el) {
@@ -1090,7 +1113,6 @@ function toggleWarehouse(el) {
 }
 
 async function applyParams() {
-  const btn = document.getElementById('applyParamsBtn');
   const daysBack = document.getElementById('inp-daysBack').value.trim();
   const daysForward = document.getElementById('inp-daysForward').value.trim();
 
@@ -1098,9 +1120,6 @@ async function applyParams() {
     showToast('Введите корректные числа', 'error');
     return;
   }
-
-  btn.classList.add('saving');
-  btn.textContent = '...';
 
   try {
     const resp = await fetch(WEBAPP_URL, {
@@ -1119,17 +1138,11 @@ async function applyParams() {
     if (result && result.ok) {
       params.salesDaysBack = result.params.salesDaysBack;
       params.salesDaysForward = result.params.salesDaysForward;
-      showToast('Параметры сохранены', 'success');
-    } else {
-      showToast('Сохранено (ожидайте пересчёта)', 'success');
     }
   } catch (err) {
     console.error('Params error:', err);
     showToast('Ошибка сохранения параметров', 'error');
   }
-
-  btn.classList.remove('saving');
-  btn.textContent = 'OK';
 }
 
 async function saveWarehouses() {
@@ -1171,7 +1184,8 @@ async function recalculate() {
   btn.classList.add('saving');
   btn.textContent = 'Пересчёт...';
 
-  // First save warehouses
+  // First save params, then warehouses
+  await applyParams();
   await saveWarehouses();
 
   // Then recalculate
