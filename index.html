@@ -46,16 +46,12 @@ body {
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
 }
 .logo span { font-weight: 400; opacity: 0.7; }
-.refresh-btn {
-  background: none; border: 1px solid var(--border);
-  color: var(--text2); border-radius: 8px;
-  padding: 6px 12px; font-size: 13px; cursor: pointer;
-  display: flex; align-items: center; gap: 4px;
-  transition: all 0.2s;
-}
-.refresh-btn:active { background: var(--accent); color: #fff; border-color: var(--accent); }
-.refresh-btn.loading { animation: pulse 1s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.header-dates {
+  font-size: 10px; color: var(--text2);
+  line-height: 1.4; text-align: right;
+  white-space: nowrap;
+}
 
 /* Summary Cards */
 .summary {
@@ -543,11 +539,9 @@ body {
 <div class="header">
   <div class="header-top">
     <div class="logo">Ferrum <span>| Заявка</span></div>
-    <div style="display:flex;gap:6px;align-items:center">
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="header-dates" id="headerDates"></div>
       <button class="settings-btn" id="settingsBtn" onclick="toggleSettings()">&#9881;</button>
-      <button class="refresh-btn" onclick="loadData()" id="refreshBtn">
-        <span id="refreshIcon">&#8635;</span> Обновить
-      </button>
     </div>
   </div>
   <div class="summary" id="summary">
@@ -555,7 +549,7 @@ body {
     <div class="stat"><div class="stat-val green" id="s-ordered">-</div><div class="stat-lbl">к заказу</div></div>
     <div class="stat"><div class="stat-val cyan" id="s-volume">-</div><div class="stat-lbl">м&sup3;</div></div>
     <div class="stat"><div class="stat-val orange" id="s-weight">-</div><div class="stat-lbl">кг</div></div>
-    <div class="stat"><div class="stat-val" id="s-price" style="color:var(--green);font-size:13px">-</div><div class="stat-lbl">РРЦ &#8381;</div></div>
+    <div class="stat"><div class="stat-val" id="s-price" style="color:var(--green);font-size:13px">-</div><div class="stat-lbl" id="s-price-lbl">&#8381; скидка</div></div>
   </div>
   <div class="search-wrap">
     <span class="search-icon">&#128269;</span>
@@ -592,6 +586,17 @@ body {
         Скрывать пустые склады в карточках
       </label>
 
+      <div class="settings-section">
+        <div class="settings-title">Скидка</div>
+        <div class="settings-row">
+          <div class="settings-pair">
+            <span class="settings-label">Скидка от РРЦ</span>
+            <input type="number" class="settings-input" id="inp-discount" value="42" min="0" max="100" oninput="updateDiscount()">
+            <span class="settings-label">%</span>
+          </div>
+        </div>
+      </div>
+
       <button class="settings-recalc" id="recalcBtn" onclick="recalculate()">Пересчитать заявку</button>
       <div class="settings-hint">После изменения параметров или складов нажмите «Пересчитать»</div>
     </div>
@@ -624,11 +629,10 @@ let allData = [];
 let filteredData = [];
 let currentFilter = 'all';
 let params = {};
+let discount = 42; // скидка от РРЦ в %
 
 // === LOAD DATA ===
 async function loadData() {
-  const btn = document.getElementById('refreshBtn');
-  btn.classList.add('loading');
 
   try {
     let data;
@@ -655,8 +659,10 @@ async function loadData() {
     if (data && data.rows) {
       allData = data.rows;
       params = data.params || {};
+      discount = params.discount || 42;
       renderAll();
       renderSettings();
+      updateHeaderDates();
     }
   } catch (err) {
     console.error('Load error:', err);
@@ -664,7 +670,6 @@ async function loadData() {
       '<div class="no-results"><div class="no-results-icon">&#9888;</div>Ошибка загрузки данных<br><small style="color:#666">Проверьте доступ к таблице</small></div>';
   }
 
-  btn.classList.remove('loading');
   document.getElementById('loading').style.display = 'none';
 }
 
@@ -741,9 +746,11 @@ function updateSummary() {
   const totVol = ordered.reduce((s, r) => s + (r.volume || 0), 0);
   const totWt = ordered.reduce((s, r) => s + (r.weight || 0), 0);
   const totPrice = ordered.reduce((s, r) => s + (r.price || 0), 0);
+  const discountedPrice = Math.round(totPrice * (1 - discount / 100));
   document.getElementById('s-volume').textContent = totVol.toFixed(1);
   document.getElementById('s-weight').textContent = Math.round(totWt);
-  document.getElementById('s-price').textContent = totPrice.toLocaleString('ru-RU');
+  document.getElementById('s-price').textContent = discountedPrice.toLocaleString('ru-RU');
+  document.getElementById('s-price-lbl').innerHTML = '&#8381; -' + discount + '%';
 
   if (params.warehouses && params.warehouses.length > 0) {
     document.getElementById('infoWarehouses').textContent = params.warehouses.join(', ');
@@ -1067,6 +1074,21 @@ function hideEmptyWhChanged() {
   hideEmptyWarehouses = document.getElementById('hideEmptyWh').checked;
 }
 
+function updateDiscount() {
+  discount = parseInt(document.getElementById('inp-discount').value) || 0;
+  updateSummary();
+}
+
+function updateHeaderDates() {
+  const back = parseInt(document.getElementById('inp-daysBack').value) || params.salesDaysBack || 0;
+  const fwd = parseInt(document.getElementById('inp-daysForward').value) || params.salesDaysForward || 0;
+  const today = new Date();
+  const from = new Date(today); from.setDate(from.getDate() - back);
+  const to = new Date(today); to.setDate(to.getDate() + fwd);
+  document.getElementById('headerDates').innerHTML =
+    '&#9668; ' + formatDate(from) + '<br>&#9658; ' + formatDate(to);
+}
+
 function formatDate(d) {
   return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear();
 }
@@ -1080,6 +1102,7 @@ function updateDateHints() {
   document.getElementById('dateHints').innerHTML =
     '<span>' + formatDate(from) + ' — ' + formatDate(today) + '</span>' +
     '<span>' + formatDate(today) + ' — ' + formatDate(to) + '</span>';
+  updateHeaderDates();
 }
 
 function renderSettings() {
@@ -1103,6 +1126,7 @@ function renderSettings() {
     </div>`;
   }
   grid.innerHTML = html;
+  document.getElementById('inp-discount').value = discount;
   updateDateHints();
 }
 
@@ -1122,12 +1146,14 @@ async function applyParams() {
   }
 
   try {
+    const discountVal = parseInt(document.getElementById('inp-discount').value) || 42;
     const resp = await fetch(WEBAPP_URL, {
       method: 'POST',
       body: JSON.stringify({
         action: 'setParams',
         salesDaysBack: Number(daysBack),
-        salesDaysForward: Number(daysForward)
+        salesDaysForward: Number(daysForward),
+        discount: discountVal
       }),
       redirect: 'follow'
     });
@@ -1138,6 +1164,10 @@ async function applyParams() {
     if (result && result.ok) {
       params.salesDaysBack = result.params.salesDaysBack;
       params.salesDaysForward = result.params.salesDaysForward;
+      if (result.params.discount !== undefined) {
+        discount = result.params.discount;
+        params.discount = discount;
+      }
     }
   } catch (err) {
     console.error('Params error:', err);
