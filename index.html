@@ -123,6 +123,10 @@ body {
 #infoWarehouses {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   min-width: 0; flex: 1; text-align: right;
+  cursor: pointer; transition: all 0.2s;
+}
+#infoWarehouses.expanded {
+  white-space: normal; overflow: visible; text-overflow: unset;
 }
 #infoCount { white-space: nowrap; }
 
@@ -619,7 +623,7 @@ body {
 
 <div class="info-bar">
   <span id="infoCount">-</span>
-  <span id="infoWarehouses">-</span>
+  <span id="infoWarehouses" onclick="this.classList.toggle('expanded')">-</span>
 </div>
 
 <div class="list" id="list"></div>
