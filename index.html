@@ -156,11 +156,16 @@ body {
   gap: 10px;
 }
 .item-order-badge {
-  min-width: 40px; height: 40px;
+  min-width: 44px; min-height: 40px;
   border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
   font-size: 16px; font-weight: 700;
   background: #1e293b; color: var(--text2);
+  padding: 4px 6px; line-height: 1.1;
+}
+.item-order-badge .pack-info {
+  font-size: 9px; font-weight: 500; opacity: 0.7;
+  margin-top: 1px;
 }
 .item.has-order .item-order-badge {
   background: linear-gradient(135deg, #1e40af, #3b82f6);
@@ -710,7 +715,8 @@ async function loadFromGViz() {
       volume: c[7] ? (c[7].v || 0) : 0,
       weight: c[8] ? (c[8].v || 0) : 0,
       price: c[9] ? (c[9].v || 0) : 0,
-      manual: c[10] ? c[10].v : null
+      manual: c[10] ? c[10].v : null,
+      packSize: 1
     });
   }
 
@@ -825,7 +831,7 @@ function renderList() {
 
     html += `<div class="item ${hasOrder ? 'has-order' : ''}" id="item-${i}" onclick="toggleItem(${i}, event)">
       <div class="item-main">
-        <div class="item-order-badge" id="badge-${i}">${hasOrder ? r.order : '0'}</div>
+        <div class="item-order-badge" id="badge-${i}">${hasOrder ? r.order : '0'}${r.packSize > 1 ? `<span class="pack-info">${Math.floor(r.order / r.packSize)}×${r.packSize}</span>` : ''}</div>
         <div class="item-info">
           <div class="item-name">${shortName}</div>
           <div class="item-art">${r.art}${hasManual ? ' <span class="manual-badge">РУЧН.</span>' : ''}</div>
