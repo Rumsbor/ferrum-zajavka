@@ -60,7 +60,7 @@ body {
 /* Summary Cards */
 .summary {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
   margin-bottom: 10px;
 }
@@ -126,7 +126,7 @@ body {
 
 /* Items List */
 .list {
-  padding: 0 12px 100px;
+  padding: 0 12px 20px;
 }
 
 /* Item Card */
@@ -284,23 +284,6 @@ body {
 }
 .wh-table tr.wh-row-off td { opacity: 0.4; }
 
-/* Bottom totals bar */
-.bottom-bar {
-  position: fixed; bottom: 0; left: 0; right: 0;
-  background: linear-gradient(0deg, #1a1d27 80%, transparent);
-  padding: 20px 16px 16px;
-  z-index: 100;
-}
-.bottom-inner {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 10px 14px;
-  display: flex; justify-content: space-around;
-}
-.btm-stat { text-align: center; }
-.btm-val { font-size: 14px; font-weight: 700; }
-.btm-lbl { font-size: 10px; color: var(--text2); }
 
 /* Loading */
 .loading-overlay {
@@ -534,6 +517,7 @@ body {
     <div class="stat"><div class="stat-val green" id="s-ordered">-</div><div class="stat-lbl">к заказу</div></div>
     <div class="stat"><div class="stat-val cyan" id="s-volume">-</div><div class="stat-lbl">м&sup3;</div></div>
     <div class="stat"><div class="stat-val orange" id="s-weight">-</div><div class="stat-lbl">кг</div></div>
+    <div class="stat"><div class="stat-val" id="s-price" style="color:var(--green);font-size:13px">-</div><div class="stat-lbl">РРЦ &#8381;</div></div>
   </div>
   <div class="search-wrap">
     <span class="search-icon">&#128269;</span>
@@ -584,22 +568,6 @@ body {
 <div class="list" id="list"></div>
 <div class="toast" id="toast"></div>
 
-<div class="bottom-bar">
-  <div class="bottom-inner">
-    <div class="btm-stat">
-      <div class="btm-val val-blue" id="b-total">-</div>
-      <div class="btm-lbl">Сумма РРЦ</div>
-    </div>
-    <div class="btm-stat">
-      <div class="btm-val val-cyan" id="b-vol">-</div>
-      <div class="btm-lbl">Объем, м&sup3;</div>
-    </div>
-    <div class="btm-stat">
-      <div class="btm-val val-orange" id="b-wt">-</div>
-      <div class="btm-lbl">Вес, кг</div>
-    </div>
-  </div>
-</div>
 
 <script>
 // === CONFIG ===
@@ -726,8 +694,10 @@ function updateSummary() {
 
   const totVol = ordered.reduce((s, r) => s + (r.volume || 0), 0);
   const totWt = ordered.reduce((s, r) => s + (r.weight || 0), 0);
+  const totPrice = ordered.reduce((s, r) => s + (r.price || 0), 0);
   document.getElementById('s-volume').textContent = totVol.toFixed(1);
   document.getElementById('s-weight').textContent = Math.round(totWt);
+  document.getElementById('s-price').textContent = totPrice.toLocaleString('ru-RU');
 
   if (params.warehouses && params.warehouses.length > 0) {
     document.getElementById('infoWarehouses').textContent = params.warehouses.join(', ');
@@ -755,7 +725,6 @@ function applyFilters() {
     `${filteredData.length} из ${allData.length} позиций`;
 
   renderList();
-  updateBottomBar();
 }
 
 function setFilter(el) {
@@ -994,17 +963,6 @@ function showToast(msg, type) {
   toast.textContent = msg;
   toast.className = 'toast ' + type + ' show';
   setTimeout(() => { toast.classList.remove('show'); }, 2500);
-}
-
-function updateBottomBar() {
-  const ordered = filteredData.filter(r => r.order > 0);
-  const totalPrice = ordered.reduce((s, r) => s + (r.price || 0), 0);
-  const totalVol = ordered.reduce((s, r) => s + (r.volume || 0), 0);
-  const totalWt = ordered.reduce((s, r) => s + (r.weight || 0), 0);
-
-  document.getElementById('b-total').textContent = totalPrice.toLocaleString('ru-RU') + ' \u20BD';
-  document.getElementById('b-vol').textContent = totalVol.toFixed(2);
-  document.getElementById('b-wt').textContent = Math.round(totalWt);
 }
 
 // === SETTINGS ===
