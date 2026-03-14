@@ -261,6 +261,10 @@ body {
   white-space: nowrap;
 }
 .wh-table th:first-child { text-align: left; }
+.wh-table th { cursor: pointer; user-select: none; }
+.wh-table th:hover { color: var(--text); }
+.wh-table th .sort-arrow { font-size: 8px; margin-left: 2px; opacity: 0.3; }
+.wh-table th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
 .wh-table td {
   padding: 3px 6px;
   text-align: right;
@@ -806,6 +810,10 @@ function toggleItem(index, event) {
   }
 }
 
+// Persistent sort state for warehouse breakdown table
+let whSortCol = null;  // 'name', 'stock', 'min', 'sales'
+let whSortAsc = true;
+
 function toggleBreakdown(i) {
   const bd = document.getElementById('whbd-' + i);
   const r = filteredData[i];
@@ -820,43 +828,80 @@ function toggleBreakdown(i) {
   }
 
   document.querySelectorAll('#item-' + i + ' .detail-cell.clickable').forEach(function(c) { c.classList.add('open'); });
+  renderBreakdown(i);
+}
+
+function sortBreakdownCol(i, col) {
+  if (whSortCol === col) {
+    whSortAsc = !whSortAsc;
+  } else {
+    whSortCol = col;
+    whSortAsc = col === 'name'; // A-Z for name, desc for numbers
+  }
+  renderBreakdown(i);
+}
+
+function renderBreakdown(i) {
+  const bd = document.getElementById('whbd-' + i);
+  const r = filteredData[i];
+  if (!r) return;
 
   const warehouses = params.warehouses || [];
   const stockData = r.stockByWh || {};
   const minData = r.minByWh || {};
   const salesData = r.salesByWh || {};
 
-  let totStock = 0, totMin = 0, totSales = 0;
-
-  let html = '<table class="wh-table"><thead><tr>' +
-    '<th>Склад</th><th>Ост.</th><th>Мин.</th><th>Прод.</th>' +
-    '</tr></thead><tbody>';
-
-  warehouses.forEach(function(wh) {
-    const sv = stockData[wh] || 0;
-    const mv = minData[wh] || 0;
-    const slv = salesData[wh] || 0;
-    totStock += sv; totMin += mv; totSales += slv;
-    const allZero = sv === 0 && mv === 0 && slv === 0;
-    html += '<tr class="' + (allZero ? 'wh-row-zero' : '') + '">' +
-      '<td>' + wh + '</td>' +
-      '<td class="val-green">' + sv + '</td>' +
-      '<td class="val-orange">' + mv + '</td>' +
-      '<td class="val-blue">' + slv + '</td>' +
-      '</tr>';
+  // Build rows for active warehouses
+  let rows = warehouses.map(function(wh) {
+    return { name: wh, stock: stockData[wh] || 0, min: minData[wh] || 0, sales: salesData[wh] || 0, off: false };
   });
 
-  // Non-selected warehouses with data
+  // Add inactive warehouses with data
   const allWh = params.allWarehouses || [];
   allWh.forEach(function(w) {
     if (!w.active && (stockData[w.name] || minData[w.name] || salesData[w.name])) {
-      html += '<tr class="wh-row-off">' +
-        '<td>' + w.name + ' (выкл)</td>' +
-        '<td class="val-green">' + (stockData[w.name] || 0) + '</td>' +
-        '<td class="val-orange">' + (minData[w.name] || 0) + '</td>' +
-        '<td class="val-blue">' + (salesData[w.name] || 0) + '</td>' +
-        '</tr>';
+      rows.push({ name: w.name, stock: stockData[w.name] || 0, min: minData[w.name] || 0, sales: salesData[w.name] || 0, off: true });
     }
+  });
+
+  // Sort if active
+  if (whSortCol) {
+    rows.sort(function(a, b) {
+      let va, vb;
+      if (whSortCol === 'name') {
+        va = a.name.toLowerCase(); vb = b.name.toLowerCase();
+        return whSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+      }
+      va = a[whSortCol]; vb = b[whSortCol];
+      return whSortAsc ? va - vb : vb - va;
+    });
+  }
+
+  let totStock = 0, totMin = 0, totSales = 0;
+
+  function thClass(col) { return whSortCol === col ? ' sorted' : ''; }
+  function arrow(col) {
+    if (whSortCol !== col) return '<span class="sort-arrow">\u25B2</span>';
+    return '<span class="sort-arrow">' + (whSortAsc ? '\u25B2' : '\u25BC') + '</span>';
+  }
+
+  let html = '<table class="wh-table"><thead><tr>' +
+    '<th class="' + thClass('name') + '" onclick="event.stopPropagation(); sortBreakdownCol(' + i + ',\'name\')">Склад' + arrow('name') + '</th>' +
+    '<th class="' + thClass('stock') + '" onclick="event.stopPropagation(); sortBreakdownCol(' + i + ',\'stock\')">Ост.' + arrow('stock') + '</th>' +
+    '<th class="' + thClass('min') + '" onclick="event.stopPropagation(); sortBreakdownCol(' + i + ',\'min\')">Мин.' + arrow('min') + '</th>' +
+    '<th class="' + thClass('sales') + '" onclick="event.stopPropagation(); sortBreakdownCol(' + i + ',\'sales\')">Прод.' + arrow('sales') + '</th>' +
+    '</tr></thead><tbody>';
+
+  rows.forEach(function(row) {
+    totStock += row.stock; totMin += row.min; totSales += row.sales;
+    const allZero = row.stock === 0 && row.min === 0 && row.sales === 0;
+    const cls = row.off ? 'wh-row-off' : (allZero ? 'wh-row-zero' : '');
+    html += '<tr class="' + cls + '">' +
+      '<td>' + row.name + (row.off ? ' (выкл)' : '') + '</td>' +
+      '<td class="val-green">' + row.stock + '</td>' +
+      '<td class="val-orange">' + row.min + '</td>' +
+      '<td class="val-blue">' + row.sales + '</td>' +
+      '</tr>';
   });
 
   html += '<tr class="wh-row-total">' +
