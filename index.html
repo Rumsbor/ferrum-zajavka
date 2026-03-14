@@ -377,7 +377,7 @@ body {
 .toast.success { background: #16341c; color: var(--green); border: 1px solid #22c55e40; }
 .toast.error { background: #3b1515; color: var(--red); border: 1px solid #ef444440; }
 
-/* Settings Panel */
+/* Settings Panel — Modal */
 .settings-btn {
   background: none; border: 1px solid var(--border);
   color: var(--text2); border-radius: 8px;
@@ -387,17 +387,35 @@ body {
 .settings-btn:active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .settings-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-.settings-panel {
+.settings-overlay {
   display: none;
-  padding: 0 16px 8px;
+  position: fixed; inset: 0; z-index: 150;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  align-items: center; justify-content: center;
+  padding: 20px;
 }
-.settings-panel.open { display: block; }
+.settings-overlay.open { display: flex; }
+
+.settings-panel {
+  width: 100%; max-width: 420px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
 .settings-card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
 }
+.settings-close {
+  float: right;
+  background: none; border: none;
+  color: var(--text2); font-size: 20px;
+  cursor: pointer; line-height: 1;
+  padding: 0 4px;
+}
+.settings-close:active { color: var(--text); }
 .settings-title {
   font-size: 12px; font-weight: 600;
   color: var(--accent); margin-bottom: 10px;
@@ -482,6 +500,15 @@ body {
   overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap;
 }
+.settings-toggle {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 10px; padding: 6px 0;
+  cursor: pointer; font-size: 12px; color: var(--text2);
+}
+.settings-toggle input[type="checkbox"] {
+  width: 16px; height: 16px; accent-color: var(--accent);
+  cursor: pointer;
+}
 .settings-section { margin-top: 12px; }
 .settings-recalc {
   margin-top: 10px; width: 100%;
@@ -529,30 +556,38 @@ body {
   </div>
 </div>
 
-<div class="settings-panel" id="settingsPanel">
-  <div class="settings-card">
-    <div class="settings-title">Параметры продаж</div>
-    <div class="settings-row">
-      <div class="settings-pair">
-        <span class="settings-label">Назад</span>
-        <input type="number" class="settings-input" id="inp-daysBack" value="-" min="1" max="730">
+<div class="settings-overlay" id="settingsOverlay" onclick="if(event.target===this)toggleSettings()">
+  <div class="settings-panel">
+    <div class="settings-card">
+      <button class="settings-close" onclick="toggleSettings()">&times;</button>
+      <div class="settings-title">Параметры продаж</div>
+      <div class="settings-row">
+        <div class="settings-pair">
+          <span class="settings-label">Назад</span>
+          <input type="number" class="settings-input" id="inp-daysBack" value="-" min="1" max="730">
+        </div>
+        <div class="settings-pair">
+          <span class="settings-label">Вперёд</span>
+          <input type="number" class="settings-input" id="inp-daysForward" value="-" min="1" max="365">
+        </div>
+        <button class="settings-apply" id="applyParamsBtn" onclick="applyParams()">OK</button>
       </div>
-      <div class="settings-pair">
-        <span class="settings-label">Вперёд</span>
-        <input type="number" class="settings-input" id="inp-daysForward" value="-" min="1" max="365">
-      </div>
-      <button class="settings-apply" id="applyParamsBtn" onclick="applyParams()">OK</button>
-    </div>
 
-    <div class="settings-section">
-      <div class="settings-title">Склады</div>
-      <div class="wh-grid" id="whGrid">
-        <!-- filled by JS -->
+      <div class="settings-section">
+        <div class="settings-title">Склады</div>
+        <div class="wh-grid" id="whGrid">
+          <!-- filled by JS -->
+        </div>
       </div>
-    </div>
 
-    <button class="settings-recalc" id="recalcBtn" onclick="recalculate()">Пересчитать заявку</button>
-    <div class="settings-hint">После изменения параметров или складов нажмите «Пересчитать»</div>
+      <label class="settings-toggle">
+        <input type="checkbox" id="hideEmptyWh" onchange="hideEmptyWhChanged()">
+        Скрывать пустые склады в карточках
+      </label>
+
+      <button class="settings-recalc" id="recalcBtn" onclick="recalculate()">Пересчитать заявку</button>
+      <div class="settings-hint">После изменения параметров или складов нажмите «Пересчитать»</div>
+    </div>
   </div>
 </div>
 
@@ -895,6 +930,7 @@ function renderBreakdown(i) {
   rows.forEach(function(row) {
     totStock += row.stock; totMin += row.min; totSales += row.sales;
     const allZero = row.stock === 0 && row.min === 0 && row.sales === 0;
+    if (hideEmptyWarehouses && allZero) return;
     const cls = row.off ? 'wh-row-off' : (allZero ? 'wh-row-zero' : '');
     html += '<tr class="' + cls + '">' +
       '<td>' + row.name + (row.off ? ' (выкл)' : '') + '</td>' +
@@ -1011,11 +1047,17 @@ function showToast(msg, type) {
 }
 
 // === SETTINGS ===
+let hideEmptyWarehouses = false;
+
 function toggleSettings() {
-  const panel = document.getElementById('settingsPanel');
+  const overlay = document.getElementById('settingsOverlay');
   const btn = document.getElementById('settingsBtn');
-  panel.classList.toggle('open');
+  overlay.classList.toggle('open');
   btn.classList.toggle('active');
+}
+
+function hideEmptyWhChanged() {
+  hideEmptyWarehouses = document.getElementById('hideEmptyWh').checked;
 }
 
 function renderSettings() {
