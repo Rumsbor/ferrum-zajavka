@@ -300,6 +300,29 @@ body {
 }
 .wh-table tr.wh-row-off td { opacity: 0.4; }
 
+/* Editable min stock cell */
+.wh-min-cell { cursor: pointer; position: relative; }
+.wh-min-cell:hover { background: rgba(255,165,0,0.15); border-radius: 4px; }
+.wh-min-edit {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; gap: 4px;
+  background: var(--card); border: 1px solid var(--accent);
+  border-radius: 6px; padding: 3px 5px; z-index: 50;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  white-space: nowrap;
+}
+.wh-min-edit input {
+  width: 50px; background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text); font-size: 13px; font-weight: 600;
+  padding: 3px 5px; text-align: center; outline: none;
+}
+.wh-min-edit input:focus { border-color: var(--accent); }
+.wh-min-edit button {
+  background: var(--accent); border: none; color: #fff; border-radius: 4px;
+  padding: 3px 8px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.wh-min-edit button.cancel { background: rgba(255,255,255,0.1); }
+.wh-min-edit .saving-spin { color: var(--accent); font-size: 12px; }
 
 /* Loading */
 .loading-overlay {
@@ -965,15 +988,15 @@ function renderBreakdown(i) {
     '</tr></thead><tbody>';
 
   rows.forEach(function(row) {
-    totStock += row.stock; totMin += row.min; totSales += row.sales;
     const allZero = row.stock === 0 && row.min === 0 && row.sales === 0;
     if (hideEmptyWarehouses && (allZero || row.off)) return;
+    totStock += row.stock; totMin += row.min; totSales += row.sales;
     const cls = row.off ? 'wh-row-off' : (allZero ? 'wh-row-zero' : '');
     html += '<tr class="' + cls + '">' +
       '<td>' + row.name + (row.off ? ' (выкл)' : '') + '</td>' +
       '<td class="val-blue">' + row.sales + '</td>' +
       '<td class="val-green">' + row.stock + '</td>' +
-      '<td class="val-orange">' + row.min + '</td>' +
+      '<td class="val-orange wh-min-cell" onclick="event.stopPropagation(); editMinStock(' + i + ', \'' + row.name.replace(/'/g, "\\'") + '\', ' + row.min + ', this)">' + row.min + '</td>' +
       '</tr>';
   });
 
@@ -989,6 +1012,92 @@ function renderBreakdown(i) {
   bd.innerHTML = html;
   bd.classList.add('open');
 }
+
+// === MIN STOCK INLINE EDIT ===
+let activeMinEdit = null; // track open editor
+
+function editMinStock(itemIdx, whName, currentVal, tdEl) {
+  // Close any existing editor
+  if (activeMinEdit) { activeMinEdit.remove(); activeMinEdit = null; }
+
+  const editor = document.createElement('div');
+  editor.className = 'wh-min-edit';
+  editor.innerHTML = '<input type="number" value="' + currentVal + '" onclick="event.stopPropagation()">' +
+    '<button onclick="event.stopPropagation(); saveMinStock(' + itemIdx + ', \'' + whName.replace(/'/g, "\\'") + '\', this.parentNode)">OK</button>' +
+    '<button class="cancel" onclick="event.stopPropagation(); closeMinEdit()">X</button>';
+  tdEl.style.position = 'relative';
+  tdEl.appendChild(editor);
+  activeMinEdit = editor;
+
+  const inp = editor.querySelector('input');
+  inp.focus();
+  inp.select();
+  inp.addEventListener('keydown', function(ev) {
+    ev.stopPropagation();
+    if (ev.key === 'Enter') saveMinStock(itemIdx, whName, editor);
+    if (ev.key === 'Escape') closeMinEdit();
+  });
+}
+
+function closeMinEdit() {
+  if (activeMinEdit) { activeMinEdit.remove(); activeMinEdit = null; }
+}
+
+async function saveMinStock(itemIdx, whName, editorEl) {
+  const inp = editorEl.querySelector('input');
+  const newVal = parseInt(inp.value) || 0;
+  const r = filteredData[itemIdx];
+  if (!r) return;
+
+  // Show saving state
+  editorEl.innerHTML = '<span class="saving-spin">...</span>';
+
+  try {
+    const resp = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'setMinStock', art: r.art, warehouse: whName, value: newVal }),
+      redirect: 'follow'
+    });
+
+    let result;
+    try { result = await resp.json(); } catch(e) { result = null; }
+
+    if (result && result.ok) {
+      // Update local data
+      if (!r.minByWh) r.minByWh = {};
+      r.minByWh[whName] = newVal;
+      // Recalculate total minStock
+      const warehouses = params.warehouses || [];
+      let totalMin = 0;
+      warehouses.forEach(function(wh) { totalMin += (r.minByWh[wh] || 0); });
+      r.minStock = totalMin;
+      // Also update allData
+      const globalIdx = allData.indexOf(r);
+      if (globalIdx >= 0) { allData[globalIdx].minStock = totalMin; allData[globalIdx].minByWh = r.minByWh; }
+
+      closeMinEdit();
+      renderBreakdown(itemIdx);
+      // Update card values
+      const dcWh = document.getElementById('dc-wh-' + itemIdx);
+      if (dcWh) {
+        const isLow = r.stock < r.minStock;
+        dcWh.previousElementSibling.previousElementSibling.querySelector('.val').className = 'val ' + (isLow ? 'val-red' : 'val-green');
+        dcWh.previousElementSibling.previousElementSibling.querySelector('.val').textContent = r.stock;
+      }
+      showToast('Мин. остаток ' + whName + ': ' + newVal, 'success');
+    } else {
+      showToast('Ошибка: ' + (result && result.error || 'нет ответа'), 'error');
+      closeMinEdit();
+    }
+  } catch (err) {
+    console.error('Save min stock error:', err);
+    showToast('Ошибка сохранения', 'error');
+    closeMinEdit();
+  }
+}
+
+// Close min editor on outside click
+document.addEventListener('click', function() { closeMinEdit(); });
 
 // === MANUAL EDIT ===
 async function saveManual(i) {
