@@ -267,17 +267,17 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  padding: 3px 6px;
+  padding: 3px 3px;
   text-align: right;
   white-space: nowrap;
 }
-.wh-table th:first-child { text-align: left; }
+.wh-table th:first-child { text-align: left; width: 99%; }
 .wh-table th { cursor: pointer; user-select: none; }
 .wh-table th:hover { color: var(--text); }
 .wh-table th .sort-arrow { font-size: 8px; margin-left: 2px; opacity: 0.3; }
 .wh-table th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
 .wh-table td {
-  padding: 3px 6px;
+  padding: 3px 3px;
   text-align: right;
   font-weight: 600;
   white-space: nowrap;
@@ -288,7 +288,8 @@ body {
   font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 120px;
+  max-width: none;
+  width: 99%;
 }
 .wh-table tr + tr td { border-top: 1px solid rgba(255,255,255,0.03); }
 .wh-table tr.wh-row-zero td { opacity: 0.3; }
@@ -958,9 +959,9 @@ function renderBreakdown(i) {
 
   let html = '<table class="wh-table"><thead><tr>' +
     '<th class="' + thClass('name') + '" onclick="event.stopPropagation(); sortBreakdownCol(' + i + ',\'name\')">Склад' + arrow('name') + '</th>' +
+    '<th class="' + thClass('sales') + '" onclick="event.stopPropagation(); sortBreakdownCol(' + i + ',\'sales\')">Прод.' + arrow('sales') + '</th>' +
     '<th class="' + thClass('stock') + '" onclick="event.stopPropagation(); sortBreakdownCol(' + i + ',\'stock\')">Ост.' + arrow('stock') + '</th>' +
     '<th class="' + thClass('min') + '" onclick="event.stopPropagation(); sortBreakdownCol(' + i + ',\'min\')">Мин.' + arrow('min') + '</th>' +
-    '<th class="' + thClass('sales') + '" onclick="event.stopPropagation(); sortBreakdownCol(' + i + ',\'sales\')">Прод.' + arrow('sales') + '</th>' +
     '</tr></thead><tbody>';
 
   rows.forEach(function(row) {
@@ -970,17 +971,17 @@ function renderBreakdown(i) {
     const cls = row.off ? 'wh-row-off' : (allZero ? 'wh-row-zero' : '');
     html += '<tr class="' + cls + '">' +
       '<td>' + row.name + (row.off ? ' (выкл)' : '') + '</td>' +
+      '<td class="val-blue">' + row.sales + '</td>' +
       '<td class="val-green">' + row.stock + '</td>' +
       '<td class="val-orange">' + row.min + '</td>' +
-      '<td class="val-blue">' + row.sales + '</td>' +
       '</tr>';
   });
 
   html += '<tr class="wh-row-total">' +
     '<td>Итого</td>' +
+    '<td class="val-blue">' + totSales + '</td>' +
     '<td class="val-green">' + totStock + '</td>' +
     '<td class="val-orange">' + totMin + '</td>' +
-    '<td class="val-blue">' + totSales + '</td>' +
     '</tr>';
 
   html += '</tbody></table>';
