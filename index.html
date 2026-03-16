@@ -304,27 +304,28 @@ body {
 .wh-table tbody tr { cursor: pointer; }
 .wh-table tbody tr:not(.wh-row-total):hover td { background: rgba(255,255,255,0.04); }
 .wh-detail-panel {
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: rgba(255,255,255,0.03);
   border-top: 1px solid rgba(255,255,255,0.06);
   animation: fadeIn 0.15s ease;
 }
 .wh-detail-row {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap;
 }
-.wh-detail-stat {
-  display: flex; flex-direction: column; align-items: center; min-width: 50px;
+.wh-peak-info { flex: 1; min-width: 160px; }
+.wh-peak-stats {
+  display: flex; gap: 16px; margin-bottom: 4px;
 }
-.wh-detail-stat .val { font-size: 16px; font-weight: 700; }
-.wh-detail-stat .lbl { font-size: 9px; text-transform: uppercase; color: var(--text2); letter-spacing: 0.3px; }
-.wh-detail-bars { flex: 1; min-width: 120px; display: flex; flex-direction: column; gap: 3px; }
-.wh-bar-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
-.wh-bar-label { width: 30px; text-align: right; color: var(--text2); font-weight: 500; }
-.wh-bar-track { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
-.wh-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
-.wh-bar-val { width: 24px; font-weight: 600; }
+.wh-peak-stat { display: flex; flex-direction: column; align-items: center; }
+.wh-peak-stat .val { font-size: 18px; font-weight: 700; }
+.wh-peak-stat .lbl { font-size: 9px; text-transform: uppercase; color: var(--text2); letter-spacing: 0.3px; }
+.wh-peak-periods {
+  font-size: 11px; color: var(--text2); margin-top: 4px;
+  line-height: 1.4; word-break: break-word;
+}
+.wh-peak-periods span { color: var(--text); font-weight: 500; }
 .wh-detail-edit {
-  display: flex; align-items: center; gap: 6px; margin-left: auto;
+  display: flex; align-items: center; gap: 6px; margin-left: auto; align-self: center;
   background: rgba(255,255,255,0.04); border-radius: 8px; padding: 6px 10px;
 }
 .wh-detail-edit label { font-size: 11px; color: var(--text2); white-space: nowrap; }
@@ -655,6 +656,18 @@ body {
 
       <button class="settings-recalc" id="recalcBtn" onclick="recalculate()">Пересчитать заявку</button>
       <div class="settings-hint">После изменения параметров или складов нажмите «Пересчитать»</div>
+
+      <div class="settings-section">
+        <div class="settings-title">Пики продаж</div>
+        <div class="settings-row">
+          <div class="settings-pair">
+            <span class="settings-label">Окно (дн.)</span>
+            <input type="number" class="settings-input" id="inp-peakDays" value="14" min="1" max="90">
+          </div>
+        </div>
+        <div class="settings-dates" id="peakInfo"></div>
+        <button class="settings-recalc" id="recalcPeaksBtn" onclick="recalcPeaks()" style="background:#e74c3c">Пересчитать пики (~2-3 мин)</button>
+      </div>
     </div>
   </div>
 </div>
@@ -966,14 +979,16 @@ function renderBreakdown(i) {
 
   // Build rows for active warehouses
   let rows = warehouses.map(function(wh) {
-    return { name: wh, stock: stockData[wh] || 0, min: minData[wh] || 0, sales: salesData[wh] || 0, peak: peakData[wh] || 0, off: false };
+    const pk = peakData[wh] || {};
+    return { name: wh, stock: stockData[wh] || 0, min: minData[wh] || 0, sales: salesData[wh] || 0, peak: pk.m || (typeof pk === 'number' ? pk : 0), peakPeriods: pk.p || '', peakTotal: pk.t || 0, off: false };
   });
 
   // Add inactive warehouses with data
   const allWh = params.allWarehouses || [];
   allWh.forEach(function(w) {
     if (!w.active && (stockData[w.name] || minData[w.name] || salesData[w.name])) {
-      rows.push({ name: w.name, stock: stockData[w.name] || 0, min: minData[w.name] || 0, sales: salesData[w.name] || 0, peak: peakData[w.name] || 0, off: true });
+      const pk = peakData[w.name] || {};
+      rows.push({ name: w.name, stock: stockData[w.name] || 0, min: minData[w.name] || 0, sales: salesData[w.name] || 0, peak: pk.m || (typeof pk === 'number' ? pk : 0), peakPeriods: pk.p || '', peakTotal: pk.t || 0, off: true });
     }
   });
 
@@ -1049,27 +1064,33 @@ function toggleWhDetail(itemIdx, whName, trEl) {
   const r = filteredData[itemIdx];
   if (!r) return;
 
-  const sales = (r.salesByWh || {})[whName] || 0;
-  const stock = (r.stockByWh || {})[whName] || 0;
   const min = (r.minByWh || {})[whName] || 0;
-  const peak = (r.peaksByWh || {})[whName] || 0;
-  const maxVal = Math.max(sales, stock, min, peak, 1);
-
-  function bar(val, color) {
-    const pct = Math.round((val / maxVal) * 100);
-    return '<div class="wh-bar-track"><div class="wh-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>';
-  }
+  const peakObj = (r.peaksByWh || {})[whName] || {};
+  const peak = peakObj.m || (typeof peakObj === 'number' ? peakObj : 0);
+  const peakPeriods = peakObj.p || '';
+  const peakTotal = peakObj.t || 0;
+  const peakDays = params.peakDaysWindow || 14;
 
   const whEsc = whName.replace(/'/g, "\\'");
+
+  // Build peak info section
+  let peakHtml = '<div class="wh-peak-info">';
+  peakHtml += '<div class="wh-peak-stats">';
+  peakHtml += '<div class="wh-peak-stat"><span class="val" style="color:#e74c3c">' + peak + '</span><span class="lbl">Пик (' + peakDays + 'д)</span></div>';
+  peakHtml += '<div class="wh-peak-stat"><span class="val val-blue">' + peakTotal + '</span><span class="lbl">Всего</span></div>';
+  peakHtml += '</div>';
+  if (peakPeriods) {
+    const parts = peakPeriods.split(' / ');
+    peakHtml += '<div class="wh-peak-periods">Периоды пиков: ' + parts.map(function(p) { return '<span>' + p + '</span>'; }).join(' &middot; ') + '</div>';
+  } else {
+    peakHtml += '<div class="wh-peak-periods">Нет данных о пиках</div>';
+  }
+  peakHtml += '</div>';
+
   const panelHtml =
     '<td colspan="4"><div class="wh-detail-panel" onclick="event.stopPropagation()">' +
       '<div class="wh-detail-row">' +
-        '<div class="wh-detail-bars">' +
-          '<div class="wh-bar-row"><span class="wh-bar-label">Пик</span>' + bar(peak, '#e74c3c') + '<span class="wh-bar-val" style="color:#e74c3c">' + peak + '</span></div>' +
-          '<div class="wh-bar-row"><span class="wh-bar-label">Прод</span>' + bar(sales, 'var(--blue)') + '<span class="wh-bar-val val-blue">' + sales + '</span></div>' +
-          '<div class="wh-bar-row"><span class="wh-bar-label">Ост</span>' + bar(stock, 'var(--green)') + '<span class="wh-bar-val val-green">' + stock + '</span></div>' +
-          '<div class="wh-bar-row"><span class="wh-bar-label">Мин</span>' + bar(min, 'var(--orange)') + '<span class="wh-bar-val val-orange">' + min + '</span></div>' +
-        '</div>' +
+        peakHtml +
         '<div class="wh-detail-edit">' +
           '<label>Мин:</label>' +
           '<input type="number" value="' + min + '" id="wh-min-inp-' + itemIdx + '">' +
@@ -1330,6 +1351,12 @@ function renderSettings() {
   }
   grid.innerHTML = html;
   document.getElementById('inp-discount').value = discount;
+  // Peak params
+  document.getElementById('inp-peakDays').value = params.peakDaysWindow || 14;
+  const peakInfo = document.getElementById('peakInfo');
+  if (params.dateFrom && params.dateTo) {
+    peakInfo.innerHTML = 'Период анализа: ' + formatDate(new Date(params.dateFrom)) + ' — ' + formatDate(new Date(params.dateTo));
+  }
   updateDateHints();
 }
 
@@ -1446,6 +1473,37 @@ async function recalculate() {
   btn.textContent = 'Пересчитать заявку';
 
   // Reload data
+  await loadData();
+}
+
+async function recalcPeaks() {
+  const btn = document.getElementById('recalcPeaksBtn');
+  const peakDays = parseInt(document.getElementById('inp-peakDays').value) || 14;
+  btn.classList.add('saving');
+  btn.textContent = 'Пересчёт пиков...';
+
+  try {
+    const resp = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'recalcPeaks', peakDays: peakDays }),
+      redirect: 'follow'
+    });
+
+    let result;
+    try { result = await resp.json(); } catch(e) { result = null; }
+
+    if (result && result.ok) {
+      showToast('Пики пересчитаны! Загружаю...', 'success');
+    } else {
+      showToast('Ошибка: ' + (result && result.error || 'нет ответа'), 'error');
+    }
+  } catch (err) {
+    console.error('Recalc peaks error:', err);
+    showToast('Ошибка пересчёта пиков', 'error');
+  }
+
+  btn.classList.remove('saving');
+  btn.textContent = 'Пересчитать пики (~2-3 мин)';
   await loadData();
 }
 
