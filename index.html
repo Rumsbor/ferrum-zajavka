@@ -659,10 +659,14 @@ body {
 
       <div class="settings-section">
         <div class="settings-title">Пики продаж</div>
-        <div class="settings-row">
-          <div class="settings-pair">
+        <div class="settings-row" style="justify-content:space-between">
+          <div class="settings-pair" style="flex:0 0 auto">
             <span class="settings-label">Окно (дн.)</span>
             <input type="number" class="settings-input" id="inp-peakDays" value="14" min="1" max="90">
+          </div>
+          <div class="settings-pair" style="flex:0 0 auto">
+            <span class="settings-label">Начало</span>
+            <input type="date" class="settings-input" id="inp-peakDateFrom" style="width:130px">
           </div>
         </div>
         <div class="settings-dates" id="peakInfo"></div>
@@ -1077,13 +1081,12 @@ function toggleWhDetail(itemIdx, whName, trEl) {
   let peakHtml = '<div class="wh-peak-info">';
   peakHtml += '<div class="wh-peak-stats">';
   peakHtml += '<div class="wh-peak-stat"><span class="val" style="color:#e74c3c">' + peak + '</span><span class="lbl">Пик (' + peakDays + 'д)</span></div>';
-  peakHtml += '<div class="wh-peak-stat"><span class="val val-blue">' + peakTotal + '</span><span class="lbl">Всего</span></div>';
   peakHtml += '</div>';
   if (peakPeriods) {
     const parts = peakPeriods.split(' / ');
-    peakHtml += '<div class="wh-peak-periods">Периоды пиков: ' + parts.map(function(p) { return '<span>' + p + '</span>'; }).join(' &middot; ') + '</div>';
+    peakHtml += '<div class="wh-peak-periods">' + parts.map(function(p) { return '<span>' + p + '</span>'; }).join(' &middot; ') + '</div>';
   } else {
-    peakHtml += '<div class="wh-peak-periods">Нет данных о пиках</div>';
+    peakHtml += '<div class="wh-peak-periods" style="color:rgba(255,255,255,0.25)">нет данных — пересчитайте пики</div>';
   }
   peakHtml += '</div>';
 
@@ -1353,9 +1356,13 @@ function renderSettings() {
   document.getElementById('inp-discount').value = discount;
   // Peak params
   document.getElementById('inp-peakDays').value = params.peakDaysWindow || 14;
+  if (params.dateFrom) {
+    const df = new Date(params.dateFrom);
+    document.getElementById('inp-peakDateFrom').value = df.getFullYear() + '-' + String(df.getMonth()+1).padStart(2,'0') + '-' + String(df.getDate()).padStart(2,'0');
+  }
   const peakInfo = document.getElementById('peakInfo');
-  if (params.dateFrom && params.dateTo) {
-    peakInfo.innerHTML = 'Период анализа: ' + formatDate(new Date(params.dateFrom)) + ' — ' + formatDate(new Date(params.dateTo));
+  if (params.dateTo) {
+    peakInfo.innerHTML = 'Конец периода: ' + formatDate(new Date(params.dateTo)) + ' (сегодня)';
   }
   updateDateHints();
 }
@@ -1479,13 +1486,14 @@ async function recalculate() {
 async function recalcPeaks() {
   const btn = document.getElementById('recalcPeaksBtn');
   const peakDays = parseInt(document.getElementById('inp-peakDays').value) || 14;
+  const peakDateFrom = document.getElementById('inp-peakDateFrom').value || '';
   btn.classList.add('saving');
   btn.textContent = 'Пересчёт пиков...';
 
   try {
     const resp = await fetch(WEBAPP_URL, {
       method: 'POST',
-      body: JSON.stringify({ action: 'recalcPeaks', peakDays: peakDays }),
+      body: JSON.stringify({ action: 'recalcPeaks', peakDays: peakDays, peakDateFrom: peakDateFrom }),
       redirect: 'follow'
     });
 
