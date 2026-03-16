@@ -1015,6 +1015,7 @@ function renderBreakdown(i) {
 
 // === MIN STOCK INLINE EDIT ===
 let activeMinEdit = null; // track open editor
+let minEditJustOpened = false; // prevent immediate close
 
 function editMinStock(itemIdx, whName, currentVal, tdEl) {
   // Close any existing editor
@@ -1022,12 +1023,15 @@ function editMinStock(itemIdx, whName, currentVal, tdEl) {
 
   const editor = document.createElement('div');
   editor.className = 'wh-min-edit';
-  editor.innerHTML = '<input type="number" value="' + currentVal + '" onclick="event.stopPropagation()">' +
-    '<button onclick="event.stopPropagation(); saveMinStock(' + itemIdx + ', \'' + whName.replace(/'/g, "\\'") + '\', this.parentNode)">OK</button>' +
-    '<button class="cancel" onclick="event.stopPropagation(); closeMinEdit()">X</button>';
+  editor.onclick = function(e) { e.stopPropagation(); };
+  editor.innerHTML = '<input type="number" value="' + currentVal + '">' +
+    '<button onclick="saveMinStock(' + itemIdx + ', \'' + whName.replace(/'/g, "\\'") + '\', this.parentNode)">OK</button>' +
+    '<button class="cancel" onclick="closeMinEdit()">X</button>';
   tdEl.style.position = 'relative';
   tdEl.appendChild(editor);
   activeMinEdit = editor;
+  minEditJustOpened = true;
+  setTimeout(function() { minEditJustOpened = false; }, 300);
 
   const inp = editor.querySelector('input');
   inp.focus();
@@ -1097,7 +1101,7 @@ async function saveMinStock(itemIdx, whName, editorEl) {
 }
 
 // Close min editor on outside click
-document.addEventListener('click', function() { closeMinEdit(); });
+document.addEventListener('click', function() { if (!minEditJustOpened) closeMinEdit(); });
 
 // === MANUAL EDIT ===
 async function saveManual(i) {
