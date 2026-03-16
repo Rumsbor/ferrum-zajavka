@@ -203,7 +203,7 @@ body {
 
 .detail-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
 }
 .detail-cell {
@@ -845,13 +845,13 @@ function renderList() {
       </div>
       <div class="item-detail">
         <div class="detail-grid">
-          <div class="detail-cell clickable" id="dc-wh-${i}" onclick="event.stopPropagation(); toggleBreakdown(${i})"><div class="val ${isLow ? 'val-red' : 'val-green'}">${r.stock}</div><div class="lbl">Остаток</div></div>
-          <div class="detail-cell clickable" onclick="event.stopPropagation(); toggleBreakdown(${i})"><div class="val val-orange">${r.minStock}</div><div class="lbl">Мин. ост.</div></div>
           <div class="detail-cell clickable" onclick="event.stopPropagation(); toggleBreakdown(${i})"><div class="val val-blue">${r.sales}</div><div class="lbl">Продажи</div></div>
           <div class="detail-cell"><div class="val val-purple">${r.yearAgo}</div><div class="lbl">Год назад</div></div>
+          <div class="detail-cell clickable" id="dc-wh-${i}" onclick="event.stopPropagation(); toggleBreakdown(${i})"><div class="val ${isLow ? 'val-red' : 'val-green'}">${r.stock}</div><div class="lbl">Остаток</div></div>
+          <div class="detail-cell clickable" onclick="event.stopPropagation(); toggleBreakdown(${i})"><div class="val val-orange">${r.minStock}</div><div class="lbl">Мин. ост.</div></div>
           <div class="detail-cell"><div class="val" style="color:#fff;font-size:18px;font-weight:800" id="order-${i}">${r.order}</div><div class="lbl">Заказ</div></div>
-          <div class="detail-cell"><div class="val" style="color:var(--text2)" id="vol-${i}">${r.volume ? r.volume.toFixed(3) : '0'}</div><div class="lbl">Объем м&sup3;</div></div>
           <div class="detail-cell"><div class="val" style="color:var(--text2)" id="wt-${i}">${r.weight ? r.weight.toFixed(1) : '0'}</div><div class="lbl">Вес кг</div></div>
+          <div class="detail-cell"><div class="val" style="color:var(--text2)" id="vol-${i}">${r.volume ? r.volume.toFixed(3) : '0'}</div><div class="lbl">Объем м&sup3;</div></div>
           <div class="detail-cell"><div class="val val-green" id="prc-${i}">${r.price ? r.price.toLocaleString('ru-RU') : '0'}</div><div class="lbl">РРЦ</div></div>
         </div>
         <div class="wh-breakdown" id="whbd-${i}"></div>
