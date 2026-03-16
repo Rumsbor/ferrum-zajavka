@@ -1080,14 +1080,7 @@ async function saveMinStock(itemIdx, whName, editorEl) {
       if (globalIdx >= 0) { allData[globalIdx].minStock = totalMin; allData[globalIdx].minByWh = r.minByWh; }
 
       closeMinEdit();
-      renderBreakdown(itemIdx);
-      // Update card values
-      const dcWh = document.getElementById('dc-wh-' + itemIdx);
-      if (dcWh) {
-        const isLow = r.stock < r.minStock;
-        dcWh.previousElementSibling.previousElementSibling.querySelector('.val').className = 'val ' + (isLow ? 'val-red' : 'val-green');
-        dcWh.previousElementSibling.previousElementSibling.querySelector('.val').textContent = r.stock;
-      }
+      renderAll();
       showToast('Мин. остаток ' + whName + ': ' + newVal, 'success');
     } else {
       showToast('Ошибка: ' + (result && result.error || 'нет ответа'), 'error');
