@@ -49,14 +49,10 @@ body {
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 .header-dates {
   font-size: 10px; color: var(--text2);
-  line-height: 1.4; text-align: right;
+  line-height: 1.6; text-align: right;
   white-space: nowrap;
 }
-.header-dates-left {
-  font-size: 10px; color: var(--text2);
-  line-height: 1.4; text-align: left;
-  white-space: nowrap;
-}
+.header-dates .arrow { color: var(--text2); opacity: 0.5; margin: 0 2px; }
 
 /* Summary Cards */
 .summary {
@@ -606,7 +602,6 @@ body {
 <div class="header">
   <div class="header-top">
     <div class="logo">Ferrum <span>| Заявка</span></div>
-    <div class="header-dates-left" id="headerDatesLeft"></div>
     <div style="display:flex;gap:8px;align-items:center">
       <div class="header-dates" id="headerDates"></div>
       <button class="settings-btn" id="settingsBtn" onclick="toggleSettings()">&#9881;</button>
@@ -635,9 +630,9 @@ body {
           <input type="number" class="settings-input" id="inp-daysBack" value="-" min="1" max="730" oninput="updateDateHints()" style="width:55px">
           <span class="settings-label">Назад</span>
         </div>
-        <div class="settings-pair" style="flex:0 0 auto;justify-content:center">
-          <input type="number" class="settings-input" id="inp-targetVolume" value="" min="1" placeholder="—" style="width:55px" title="Целевой объём заявки">
-          <span class="settings-label">м³</span>
+        <div style="text-align:center;flex:0 0 auto">
+          <div style="font-size:18px;font-weight:700;color:var(--cyan)" id="settings-vol-display">—</div>
+          <div style="font-size:10px;color:var(--text2)">м³</div>
         </div>
         <div class="settings-pair" style="flex:0 0 auto">
           <span class="settings-label">Вперёд</span>
@@ -656,13 +651,25 @@ body {
         Скрывать невыбранные склады в карточках
       </label>
 
-      <div class="settings-section">
-        <div class="settings-title">Скидка</div>
-        <div class="settings-row">
-          <div class="settings-pair">
-            <span class="settings-label">Скидка от РРЦ</span>
-            <input type="number" class="settings-input" id="inp-discount" value="42" min="0" max="100" oninput="updateDiscount()">
-            <span class="settings-label">%</span>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div class="settings-section" style="flex:1">
+          <div class="settings-title">Скидка</div>
+          <div class="settings-row">
+            <div class="settings-pair">
+              <span class="settings-label">от РРЦ</span>
+              <input type="number" class="settings-input" id="inp-discount" value="42" min="0" max="100" oninput="updateDiscount()">
+              <span class="settings-label">%</span>
+            </div>
+          </div>
+        </div>
+        <div class="settings-section" style="flex:0 0 auto;text-align:right">
+          <div class="settings-title">Цель</div>
+          <div class="settings-row" style="justify-content:flex-end">
+            <div class="settings-pair">
+              <span class="settings-label">Объём</span>
+              <input type="number" class="settings-input" id="inp-targetVolume" value="" min="1" placeholder="—" style="width:55px" title="Целевой объём заявки">
+              <span class="settings-label">м³</span>
+            </div>
           </div>
         </div>
       </div>
@@ -837,6 +844,8 @@ function updateSummary() {
   const discountedPrice = Math.round(totPrice * (1 - discount / 100));
   document.getElementById('s-volume').textContent = totVol.toFixed(1);
   document.getElementById('s-weight').textContent = Math.round(totWt);
+  const volDisp = document.getElementById('settings-vol-display');
+  if (volDisp) volDisp.textContent = totVol.toFixed(1);
   if (showDiscounted) {
     document.getElementById('s-price').textContent = discountedPrice.toLocaleString('ru-RU');
     document.getElementById('s-price-lbl').innerHTML = '&#8381; -' + discount + '%';
@@ -1342,12 +1351,9 @@ function updateHeaderDates() {
     fwdFrom = fwdFrom || formatDate(today);
     fwdTo = fwdTo || formatDate(to);
   }
-  // Left: back period dates
-  document.getElementById('headerDatesLeft').innerHTML =
-    backFrom + '<br>' + fwdFrom;
-  // Right: forward period dates
   document.getElementById('headerDates').innerHTML =
-    backTo + '<br>' + fwdTo;
+    backFrom + ' <span class="arrow">→</span> ' + backTo +
+    '<br>' + fwdFrom + ' <span class="arrow">→</span> ' + fwdTo;
 }
 
 function formatDate(d) {
@@ -1578,6 +1584,7 @@ async function recalculate() {
 
   btn.classList.remove('saving');
   btn.textContent = 'Пересчитать заявку';
+  document.getElementById('inp-targetVolume').value = '';
 }
 
 async function recalcPeaks() {
