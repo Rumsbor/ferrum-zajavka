@@ -332,7 +332,7 @@ body {
 .wh-detail-edit {
   display: flex; align-items: center; gap: 5px;
   background: rgba(255,255,255,0.04); border-radius: 8px; padding: 5px 8px;
-  flex-shrink: 0; align-self: flex-start;
+  flex-shrink: 0; align-self: center;
 }
 .wh-detail-edit label { font-size: 11px; color: var(--text2); white-space: nowrap; }
 .wh-detail-edit input {
@@ -1136,7 +1136,7 @@ function toggleWhDetail(itemIdx, whName, trEl) {
         peakHtml +
         '<div class="wh-detail-edit">' +
           '<label>Мин:</label>' +
-          '<input type="number" value="' + min + '" id="wh-min-inp-' + itemIdx + '">' +
+          '<input type="number" value="' + min + '" id="wh-min-inp-' + itemIdx + '" readonly onclick="this.removeAttribute(\'readonly\'); this.focus(); this.select();">' +
           '<button onclick="saveMinStock(' + itemIdx + ', \'' + whEsc + '\')">OK</button>' +
         '</div>' +
       '</div>' +
@@ -1149,8 +1149,6 @@ function toggleWhDetail(itemIdx, whName, trEl) {
   activeWhDetail = detailTr;
 
   const inp = detailTr.querySelector('input');
-  inp.focus();
-  inp.select();
   inp.addEventListener('keydown', function(ev) {
     ev.stopPropagation();
     if (ev.key === 'Enter') saveMinStock(itemIdx, whName);
