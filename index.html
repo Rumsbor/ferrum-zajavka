@@ -646,10 +646,16 @@ body {
         <div class="wh-grid" id="whGrid"></div>
       </div>
 
-      <label class="settings-toggle">
-        <input type="checkbox" id="hideUnselectedWh" onchange="hideUnselectedWhChanged()">
-        Скрывать невыбранные склады в карточках
-      </label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
+        <label class="settings-toggle">
+          <input type="checkbox" id="hideEmptyWh" onchange="hideEmptyWhChanged()">
+          Скрывать пустые склады
+        </label>
+        <label class="settings-toggle">
+          <input type="checkbox" id="hideUnselectedWh" onchange="hideUnselectedWhChanged()">
+          Скрывать невыбранные склады
+        </label>
+      </div>
 
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div class="settings-section" style="flex:1">
@@ -1300,6 +1306,10 @@ function toggleSettings() {
   btn.classList.toggle('active');
 }
 
+function hideEmptyWhChanged() {
+  hideEmptyWarehouses = document.getElementById('hideEmptyWh').checked;
+}
+
 function hideUnselectedWhChanged() {
   hideUnselectedWarehouses = document.getElementById('hideUnselectedWh').checked;
 }
@@ -1335,29 +1345,18 @@ function togglePriceView() {
 }
 
 function updateHeaderDates() {
-  // Даты из таблицы или рассчитанные
-  let backFrom = parseServerDate(params.salesBackFrom);
-  let backTo = parseServerDate(params.salesBackTo);
-  let fwdFrom = parseServerDate(params.salesFwdFrom);
-  let fwdTo = parseServerDate(params.salesFwdTo);
-  if (!backFrom || !backTo || !fwdFrom || !fwdTo) {
-    const back = parseInt(document.getElementById('inp-daysBack').value) || params.salesDaysBack || 0;
-    const fwd = parseInt(document.getElementById('inp-daysForward').value) || params.salesDaysForward || 0;
-    const today = new Date();
-    const from = new Date(today); from.setDate(from.getDate() - back);
-    const to = new Date(today); to.setDate(to.getDate() + fwd);
-    backFrom = backFrom || formatDate(from);
-    backTo = backTo || formatDate(today);
-    fwdFrom = fwdFrom || formatDate(today);
-    fwdTo = fwdTo || formatDate(to);
-  }
-  document.getElementById('headerDates').innerHTML =
-    backFrom + ' <span class="arrow">→</span> ' + backTo +
-    '<br>' + fwdFrom + ' <span class="arrow">→</span> ' + fwdTo;
+  updateDateHints();
 }
 
 function formatDate(d) {
   return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear();
+}
+
+function parseDateDMY(s) {
+  if (!s) return null;
+  const m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!m) return null;
+  return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
 }
 
 function parseServerDate(val) {
@@ -1369,27 +1368,33 @@ function parseServerDate(val) {
 }
 
 function updateDateHints() {
-  // Даты из таблицы или рассчитанные
-  const backFrom = parseServerDate(params.salesBackFrom);
-  const backTo = parseServerDate(params.salesBackTo);
-  const fwdFrom = parseServerDate(params.salesFwdFrom);
-  const fwdTo = parseServerDate(params.salesFwdTo);
-  if (backFrom && backTo && fwdFrom && fwdTo) {
-    document.getElementById('dateHints').innerHTML =
-      '<span>' + backFrom + ' — ' + backTo + '</span>' +
-      '<span>' + fwdFrom + ' — ' + fwdTo + '</span>';
-    updateHeaderDates();
-    return;
-  }
   const back = parseInt(document.getElementById('inp-daysBack').value) || 0;
   const fwd = parseInt(document.getElementById('inp-daysForward').value) || 0;
-  const today = new Date();
-  const from = new Date(today); from.setDate(from.getDate() - back);
-  const to = new Date(today); to.setDate(to.getDate() + fwd);
+
+  // Опорная дата — salesBackTo (последняя дата данных) или сегодня
+  let anchor;
+  if (params.salesBackTo) {
+    const parsed = parseDateDMY(parseServerDate(params.salesBackTo));
+    anchor = parsed || new Date();
+  } else {
+    anchor = new Date();
+  }
+
+  const backFrom = new Date(anchor); backFrom.setDate(backFrom.getDate() - back);
+  const backTo = anchor;
+  // Год назад от опорной даты
+  const fwdAnchor = new Date(anchor); fwdAnchor.setFullYear(fwdAnchor.getFullYear() - 1);
+  const fwdFrom = fwdAnchor;
+  const fwdTo = new Date(fwdAnchor); fwdTo.setDate(fwdTo.getDate() + fwd);
+
   document.getElementById('dateHints').innerHTML =
-    '<span>' + formatDate(from) + ' — ' + formatDate(today) + '</span>' +
-    '<span>' + formatDate(today) + ' — ' + formatDate(to) + '</span>';
-  updateHeaderDates();
+    '<span>' + formatDate(backFrom) + ' — ' + formatDate(backTo) + '</span>' +
+    '<span>' + formatDate(fwdFrom) + ' — ' + formatDate(fwdTo) + '</span>';
+
+  // Обновляем шапку тоже
+  document.getElementById('headerDates').innerHTML =
+    formatDate(backFrom) + ' <span class="arrow">→</span> ' + formatDate(backTo) +
+    '<br>' + formatDate(fwdFrom) + ' <span class="arrow">→</span> ' + formatDate(fwdTo);
 }
 
 function renderSettings() {
@@ -1515,13 +1520,14 @@ async function recalculate() {
   const currentDaysBack = parseInt(document.getElementById('inp-daysBack').value) || 175;
 
   if (targetVol > 0 && currentVol > 0) {
-    // Iterative: estimate daysBack proportionally, recalc, refine up to 3 times
-    let bestDays = Math.round(currentDaysBack * targetVol / currentVol);
+    // Обратная пропорция: больше дней назад → меньший дневной расход → меньше объём
+    let bestDays = Math.round(currentDaysBack * currentVol / targetVol);
     bestDays = Math.max(7, Math.min(730, bestDays));
     document.getElementById('inp-daysBack').value = bestDays;
 
-    for (let iter = 0; iter < 3; iter++) {
-      btn.textContent = 'Подбор объёма (' + (iter + 1) + '/3)...';
+    for (let iter = 0; iter < 5; iter++) {
+      btn.textContent = 'Подбор объёма (' + (iter + 1) + '/5)...';
+      updateDateHints();
       await applyParams();
       await saveWarehouses();
 
@@ -1539,16 +1545,21 @@ async function recalculate() {
       await loadData();
       const newVol = allData.filter(r => r.order > 0).reduce((s, r) => s + (r.volume || 0), 0);
 
-      if (newVol === 0 || Math.abs(newVol - targetVol) / targetVol < 0.03) {
-        // Close enough (within 3%)
-        showToast('Объём ' + newVol.toFixed(1) + ' м³ (цель ' + targetVol + ')', 'success');
+      if (newVol === 0) {
+        showToast('Объём = 0, подбор невозможен', 'error');
         break;
       }
 
-      if (iter < 2) {
-        // Refine estimate
+      const diff = Math.abs(newVol - targetVol) / targetVol;
+      if (diff < 0.03) {
+        showToast('Объём ' + newVol.toFixed(1) + ' м³ (цель ' + targetVol + ', дней: ' + bestDays + ')', 'success');
+        break;
+      }
+
+      if (iter < 4) {
+        // Уточняем: обратная пропорция от текущей точки
         const curDays = parseInt(document.getElementById('inp-daysBack').value);
-        bestDays = Math.round(curDays * targetVol / newVol);
+        bestDays = Math.round(curDays * newVol / targetVol);
         bestDays = Math.max(7, Math.min(730, bestDays));
         document.getElementById('inp-daysBack').value = bestDays;
       } else {
