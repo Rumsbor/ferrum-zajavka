@@ -1,7 +1,7 @@
 # Ferrum | Заявка — Документация приложения
 
-**Версия:** v2.4
-**Файл:** `zajavka/index.html` (~1655 строк, single-file HTML app)
+**Версия:** v2.5
+**Файл:** `zajavka/index.html` (~1680 строк, single-file HTML app)
 **GitHub:** `Rumsbor/ferrum-zajavka` (ветка `master`, auto-deploy на GitHub Pages)
 **URL:** `https://rumsbor.github.io/ferrum-zajavka/`
 
@@ -40,6 +40,7 @@ const SHEET_ID = '1ETqyDhB5Uh4tcmCX8uidtyNhleMSGIjRZ9snOacO-Gk';
 - `params` — параметры из таблицы (склады, даты, и т.д.)
 - `discount` — текущая скидка от РРЦ (по умолчанию 42%)
 - `showDiscounted` — переключатель отображения цен (скидка/РРЦ)
+- `orderedStatMode` — режим карточки "к заказу": 0=позиций, 1=штук, 2=коробок
 - `hideEmptyWarehouses` / `hideUnselectedWarehouses` — фильтры складов
 
 ## Модель данных
@@ -239,6 +240,7 @@ const SHEET_ID = '1ETqyDhB5Uh4tcmCX8uidtyNhleMSGIjRZ9snOacO-Gk';
 - **Индикаторы**: ▼ красный = дефицит (stock < minStock), ▲ зелёный = в норме
 - **Live-даты**: при изменении дней назад/вперёд даты обновляются мгновенно (без пересчёта)
 - **Мин. остаток**: поле `readonly`, активируется по клику (не вызывает клавиатуру при открытии панели)
+- **Карточка "к заказу"**: клик переключает: позиций → штук → коробок
 - **Цена**: клик на сводку или карточку переключает РРЦ ↔ скидка
 - **Пики**: показываются в панели склада, сворачиваются после 4 периодов
 - **Toast**: зелёный (success) или красный (error), 2.5 сек
