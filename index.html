@@ -48,17 +48,15 @@ body {
   margin-bottom: 10px;
 }
 .logo {
-  display: flex; flex-direction: column; line-height: 1.1;
-}
-.logo-name {
   font-size: 18px; font-weight: 700;
   background: linear-gradient(135deg, var(--accent), var(--cyan));
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
 }
-.logo-name span { font-weight: 400; opacity: 0.7; }
-.logo-ver {
-  font-size: 9px; color: var(--text2); opacity: 0.5;
-  font-weight: 400; margin-top: 1px;
+.logo span { font-weight: 400; opacity: 0.7; }
+.logo .app-ver {
+  font-size: 9px; font-weight: 400;
+  -webkit-text-fill-color: var(--text2); opacity: 0.5;
+  margin-left: 4px;
 }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 .header-dates {
@@ -625,7 +623,7 @@ body {
 
 <div class="header">
   <div class="header-top">
-    <div class="logo"><span class="logo-name">Ferrum <span>| Заявка</span></span><span class="logo-ver">v2.5</span></div>
+    <div class="logo">Ferrum <span>| Заявка</span> <span class="app-ver">v2.5</span></div>
     <div style="display:flex;gap:8px;align-items:center">
       <div class="header-dates" id="headerDates"></div>
       <button class="settings-btn" id="settingsBtn" onclick="toggleSettings()">&#9881;</button>
