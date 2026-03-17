@@ -46,6 +46,7 @@ body {
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
 }
 .logo span { font-weight: 400; opacity: 0.7; }
+.logo .app-ver { font-size: 9px; opacity: 0.3; font-weight: 400; vertical-align: super; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 .header-dates {
   font-size: 10px; color: var(--text2);
@@ -385,18 +386,28 @@ body {
 
 /* Editable manual field */
 .manual-edit {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 8px;
   margin-top: 8px; padding: 8px;
   background: rgba(245,158,11,0.08);
   border: 1px solid rgba(245,158,11,0.3);
   border-radius: 10px;
+}
+.manual-pack-hint {
+  display: flex; align-items: center; gap: 4px;
+  flex: 1; min-width: 0;
+}
+.pack-icon { font-size: 20px; line-height: 1; }
+.pack-text { font-size: 14px; color: var(--text2); font-weight: 600; }
+.manual-right {
+  display: flex; align-items: center; gap: 6px;
+  flex: 0 0 auto;
 }
 .manual-edit label {
   font-size: 12px; color: var(--orange); font-weight: 600;
   white-space: nowrap;
 }
 .manual-input {
-  flex: 1; padding: 6px 10px;
+  width: 70px; padding: 6px 10px;
   background: var(--bg); border: 1px solid var(--border);
   border-radius: 8px; color: var(--text);
   font-size: 16px; font-weight: 700;
@@ -601,7 +612,7 @@ body {
 
 <div class="header">
   <div class="header-top">
-    <div class="logo">Ferrum <span>| Заявка</span></div>
+    <div class="logo">Ferrum <span>| Заявка</span> <span class="app-ver">v2.4</span></div>
     <div style="display:flex;gap:8px;align-items:center">
       <div class="header-dates" id="headerDates"></div>
       <button class="settings-btn" id="settingsBtn" onclick="toggleSettings()">&#9881;</button>
@@ -941,10 +952,16 @@ function renderList() {
         </div>
         <div class="wh-breakdown" id="whbd-${i}"></div>
         <div class="manual-edit">
-          <label>Ручн:</label>
-          <input type="number" class="manual-input" id="manual-${i}" value="${manualVal}" placeholder="-" data-art="${r.art}" data-idx="${globalIdx}" onclick="event.stopPropagation()">
-          <button class="manual-save" id="savebtn-${i}" onclick="event.stopPropagation(); saveManual(${i})">OK</button>
-          <button class="manual-clear" onclick="event.stopPropagation(); clearManual(${i})">X</button>
+          <div class="manual-pack-hint" onclick="event.stopPropagation()">
+            <span class="pack-icon">📦</span>
+            <span class="pack-text">×${r.packSize || 1}</span>
+          </div>
+          <div class="manual-right">
+            <label>Ручн:</label>
+            <input type="number" class="manual-input" id="manual-${i}" value="${manualVal}" placeholder="-" data-art="${r.art}" data-idx="${globalIdx}" onclick="event.stopPropagation()">
+            <button class="manual-save" id="savebtn-${i}" onclick="event.stopPropagation(); saveManual(${i})">OK</button>
+            <button class="manual-clear" onclick="event.stopPropagation(); clearManual(${i})">X</button>
+          </div>
         </div>
       </div>
     </div>`;
