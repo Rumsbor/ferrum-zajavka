@@ -1511,39 +1511,23 @@ async function saveWarehouses() {
   }
 }
 
-// Локальная оценка объёма для заданного числа дней (без обращения к серверу)
-function estimateVolumeForDays(days, currentDays) {
-  const ratio = days / currentDays;
-  let totalVol = 0;
-
-  for (let i = 0; i < allData.length; i++) {
-    const r = allData[i];
-
-    // Ручные позиции: фиксированный вклад
-    if (r.manual !== null && r.manual !== undefined && r.manual !== '') {
-      totalVol += (r.volume || 0);
-      continue;
-    }
-
-    // Масштабируем продажи пропорционально числу дней
-    const newSales = r.sales * ratio;
-    let newOrder = newSales + (r.minStock || 0) - (r.stock || 0);
-    if (newOrder <= 0) continue;
-
-    // Округляем вверх до кратности
-    if (r.packSize > 1) {
-      newOrder = Math.ceil(newOrder / r.packSize) * r.packSize;
-    } else {
-      newOrder = Math.ceil(newOrder);
-    }
-
-    // Объём единицы товара из текущих данных
-    if (r.order > 0 && r.volume > 0) {
-      totalVol += newOrder * (r.volume / r.order);
-    }
-  }
-
-  return totalVol;
+// Серверный пересчёт заявки (одна операция)
+async function doServerRecalc(btn, days) {
+  document.getElementById('inp-daysBack').value = days;
+  updateDateHints();
+  btn.textContent = 'Пересчёт (дней: ' + days + ')...';
+  await applyParams();
+  await saveWarehouses();
+  try {
+    const resp = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'recalculate' }),
+      redirect: 'follow'
+    });
+    try { await resp.json(); } catch(e) {}
+  } catch(e) {}
+  await loadData();
+  return allData.filter(r => r.order > 0).reduce((s, r) => s + (r.volume || 0), 0);
 }
 
 async function recalculate() {
@@ -1555,80 +1539,37 @@ async function recalculate() {
   const currentDaysBack = parseInt(document.getElementById('inp-daysBack').value) || 175;
 
   if (targetVol > 0 && currentVol > 0) {
-    // Локальный бинарный поиск: мгновенно находим оптимальное число дней
-    btn.textContent = 'Подбор дней...';
-    let lo = 7, hi = 730, bestDays = currentDaysBack;
+    // Метод секущих: используем реальные серверные данные
+    // Точка 1: уже известна (currentDaysBack, currentVol)
+    const d1 = currentDaysBack;
+    const v1 = currentVol;
 
-    // Проверяем границы
-    const estLo = estimateVolumeForDays(lo, currentDaysBack);
-    const estHi = estimateVolumeForDays(hi, currentDaysBack);
+    // Точка 2: пропорциональная оценка
+    // Формула заказа: order = CEILING(MAX(0, продажи + мин_ост - остаток), кратность)
+    // Продажи ∝ дни → связь прямая: больше дней = больше объём
+    let d2 = Math.round(d1 * targetVol / v1);
+    d2 = Math.max(7, Math.min(730, d2));
+    // Минимальный шаг чтобы получить другую точку
+    if (d2 === d1) d2 = targetVol < v1 ? Math.max(7, d1 - 10) : Math.min(730, d1 + 10);
 
-    if (targetVol <= estLo) {
-      bestDays = lo;
-    } else if (targetVol >= estHi) {
-      bestDays = hi;
+    const v2 = await doServerRecalc(btn, d2);
+
+    // Проверяем: достаточно ли точно?
+    if (v2 > 0 && Math.abs(v2 - targetVol) / targetVol <= 0.05) {
+      showToast('Объём ' + v2.toFixed(1) + ' м³ (цель ' + targetVol + ', дней: ' + d2 + ')', 'success');
+    } else if (v2 > 0 && Math.abs(v2 - v1) > 0.5) {
+      // Метод секущих: интерполяция по двум реальным точкам
+      // d3 = d1 + (target - v1) * (d2 - d1) / (v2 - v1)
+      let d3 = Math.round(d1 + (targetVol - v1) * (d2 - d1) / (v2 - v1));
+      d3 = Math.max(7, Math.min(730, d3));
+
+      btn.textContent = 'Уточнение (дней: ' + d3 + ')...';
+      const v3 = await doServerRecalc(btn, d3);
+      showToast('Объём ' + v3.toFixed(1) + ' м³ (цель ' + targetVol + ', дней: ' + d3 + ')', 'success');
     } else {
-      // Бинарный поиск (моментальный, ~10 итераций)
-      while (hi - lo > 1) {
-        const mid = Math.floor((lo + hi) / 2);
-        if (estimateVolumeForDays(mid, currentDaysBack) > targetVol) {
-          hi = mid;
-        } else {
-          lo = mid;
-        }
-      }
-      const vLo = estimateVolumeForDays(lo, currentDaysBack);
-      const vHi = estimateVolumeForDays(hi, currentDaysBack);
-      bestDays = (Math.abs(vLo - targetVol) <= Math.abs(vHi - targetVol)) ? lo : hi;
+      // Кривая слишком плоская — объём слабо зависит от дней
+      showToast('Объём ' + v2.toFixed(1) + ' м³ — слабо зависит от дней', 'success');
     }
-
-    document.getElementById('inp-daysBack').value = bestDays;
-    updateDateHints();
-
-    // ОДИН серверный пересчёт
-    btn.textContent = 'Пересчёт (дней: ' + bestDays + ')...';
-    await applyParams();
-    await saveWarehouses();
-
-    try {
-      const resp = await fetch(WEBAPP_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'recalculate' }),
-        redirect: 'follow'
-      });
-      let result;
-      try { result = await resp.json(); } catch(e) { result = null; }
-    } catch(e) {}
-
-    await loadData();
-    let newVol = allData.filter(r => r.order > 0).reduce((s, r) => s + (r.volume || 0), 0);
-
-    // Если ошибка > 5%, одна коррекция прямой пропорцией
-    if (newVol > 0 && Math.abs(newVol - targetVol) / targetVol > 0.05) {
-      bestDays = Math.round(bestDays * targetVol / newVol);
-      bestDays = Math.max(7, Math.min(730, bestDays));
-      document.getElementById('inp-daysBack').value = bestDays;
-      updateDateHints();
-
-      btn.textContent = 'Уточнение (дней: ' + bestDays + ')...';
-      await applyParams();
-      await saveWarehouses();
-
-      try {
-        const resp = await fetch(WEBAPP_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action: 'recalculate' }),
-          redirect: 'follow'
-        });
-        let result;
-        try { result = await resp.json(); } catch(e) { result = null; }
-      } catch(e) {}
-
-      await loadData();
-      newVol = allData.filter(r => r.order > 0).reduce((s, r) => s + (r.volume || 0), 0);
-    }
-
-    showToast('Объём ' + newVol.toFixed(1) + ' м³ (цель ' + targetVol + ', дней: ' + bestDays + ')', 'success');
   } else {
     // Normal recalculation without volume targeting
     btn.textContent = 'Пересчёт...';
