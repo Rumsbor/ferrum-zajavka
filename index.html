@@ -52,7 +52,7 @@ body {
   line-height: 1.4; text-align: right;
   white-space: nowrap;
 }
-.header-date-from {
+.header-dates-left {
   font-size: 10px; color: var(--text2);
   line-height: 1.4; text-align: left;
   white-space: nowrap;
@@ -606,7 +606,7 @@ body {
 <div class="header">
   <div class="header-top">
     <div class="logo">Ferrum <span>| Заявка</span></div>
-    <div class="header-date-from" id="headerDateFrom"></div>
+    <div class="header-dates-left" id="headerDatesLeft"></div>
     <div style="display:flex;gap:8px;align-items:center">
       <div class="header-dates" id="headerDates"></div>
       <button class="settings-btn" id="settingsBtn" onclick="toggleSettings()">&#9881;</button>
@@ -636,7 +636,7 @@ body {
           <span class="settings-label">Назад</span>
         </div>
         <div class="settings-pair" style="flex:0 0 auto;justify-content:center">
-          <input type="number" class="settings-input" id="inp-orderVolume" value="" min="0" placeholder="м³" style="width:55px" oninput="updateOrderVolume()">
+          <input type="number" class="settings-input" id="inp-targetVolume" value="" min="1" placeholder="—" style="width:55px" title="Целевой объём заявки">
           <span class="settings-label">м³</span>
         </div>
         <div class="settings-pair" style="flex:0 0 auto">
@@ -1315,10 +1315,6 @@ function toggleCardPrice(i) {
   }
 }
 
-function updateOrderVolume() {
-  // placeholder for future use
-}
-
 function updateDiscount() {
   discount = parseInt(document.getElementById('inp-discount').value) || 0;
   updateSummary();
@@ -1330,25 +1326,28 @@ function togglePriceView() {
 }
 
 function updateHeaderDates() {
-  // Используем даты из таблицы если есть, иначе считаем от сегодня
+  // Даты из таблицы или рассчитанные
   let backFrom = parseServerDate(params.salesBackFrom);
+  let backTo = parseServerDate(params.salesBackTo);
+  let fwdFrom = parseServerDate(params.salesFwdFrom);
   let fwdTo = parseServerDate(params.salesFwdTo);
-  if (!backFrom || !fwdTo) {
+  if (!backFrom || !backTo || !fwdFrom || !fwdTo) {
     const back = parseInt(document.getElementById('inp-daysBack').value) || params.salesDaysBack || 0;
     const fwd = parseInt(document.getElementById('inp-daysForward').value) || params.salesDaysForward || 0;
     const today = new Date();
     const from = new Date(today); from.setDate(from.getDate() - back);
     const to = new Date(today); to.setDate(to.getDate() + fwd);
     backFrom = backFrom || formatDate(from);
+    backTo = backTo || formatDate(today);
+    fwdFrom = fwdFrom || formatDate(today);
     fwdTo = fwdTo || formatDate(to);
   }
+  // Left: back period dates
+  document.getElementById('headerDatesLeft').innerHTML =
+    backFrom + '<br>' + fwdFrom;
+  // Right: forward period dates
   document.getElementById('headerDates').innerHTML =
-    '&#9668; ' + backFrom + '<br>&#9658; ' + fwdTo;
-  // Start date for peaks on the left
-  const dateFromEl = document.getElementById('headerDateFrom');
-  if (dateFromEl && params.dateFrom) {
-    dateFromEl.textContent = parseServerDate(params.dateFrom);
-  }
+    backTo + '<br>' + fwdTo;
 }
 
 function formatDate(d) {
@@ -1504,38 +1503,81 @@ async function saveWarehouses() {
 async function recalculate() {
   const btn = document.getElementById('recalcBtn');
   btn.classList.add('saving');
-  btn.textContent = 'Пересчёт...';
 
-  // First save params, then warehouses
-  await applyParams();
-  await saveWarehouses();
+  const targetVol = parseFloat(document.getElementById('inp-targetVolume').value) || 0;
+  const currentVol = allData.filter(r => r.order > 0).reduce((s, r) => s + (r.volume || 0), 0);
+  const currentDaysBack = parseInt(document.getElementById('inp-daysBack').value) || 175;
 
-  // Then recalculate
-  try {
-    const resp = await fetch(WEBAPP_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'recalculate' }),
-      redirect: 'follow'
-    });
+  if (targetVol > 0 && currentVol > 0) {
+    // Iterative: estimate daysBack proportionally, recalc, refine up to 3 times
+    let bestDays = Math.round(currentDaysBack * targetVol / currentVol);
+    bestDays = Math.max(7, Math.min(730, bestDays));
+    document.getElementById('inp-daysBack').value = bestDays;
 
-    let result;
-    try { result = await resp.json(); } catch(e) { result = null; }
+    for (let iter = 0; iter < 3; iter++) {
+      btn.textContent = 'Подбор объёма (' + (iter + 1) + '/3)...';
+      await applyParams();
+      await saveWarehouses();
 
-    if (result && result.ok) {
-      showToast('Заявка пересчитана! Загружаю...', 'success');
-    } else {
-      showToast('Запрос отправлен, загружаю...', 'success');
+      try {
+        const resp = await fetch(WEBAPP_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'recalculate' }),
+          redirect: 'follow'
+        });
+        let result;
+        try { result = await resp.json(); } catch(e) { result = null; }
+      } catch(e) {}
+
+      // Reload to get new volume
+      await loadData();
+      const newVol = allData.filter(r => r.order > 0).reduce((s, r) => s + (r.volume || 0), 0);
+
+      if (newVol === 0 || Math.abs(newVol - targetVol) / targetVol < 0.03) {
+        // Close enough (within 3%)
+        showToast('Объём ' + newVol.toFixed(1) + ' м³ (цель ' + targetVol + ')', 'success');
+        break;
+      }
+
+      if (iter < 2) {
+        // Refine estimate
+        const curDays = parseInt(document.getElementById('inp-daysBack').value);
+        bestDays = Math.round(curDays * targetVol / newVol);
+        bestDays = Math.max(7, Math.min(730, bestDays));
+        document.getElementById('inp-daysBack').value = bestDays;
+      } else {
+        showToast('Объём ' + newVol.toFixed(1) + ' м³ (цель ' + targetVol + ', дней: ' + bestDays + ')', 'success');
+      }
     }
-  } catch (err) {
-    console.error('Recalc error:', err);
-    showToast('Ошибка пересчёта', 'error');
+  } else {
+    // Normal recalculation without volume targeting
+    btn.textContent = 'Пересчёт...';
+    await applyParams();
+    await saveWarehouses();
+
+    try {
+      const resp = await fetch(WEBAPP_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'recalculate' }),
+        redirect: 'follow'
+      });
+      let result;
+      try { result = await resp.json(); } catch(e) { result = null; }
+      if (result && result.ok) {
+        showToast('Заявка пересчитана! Загружаю...', 'success');
+      } else {
+        showToast('Запрос отправлен, загружаю...', 'success');
+      }
+    } catch (err) {
+      console.error('Recalc error:', err);
+      showToast('Ошибка пересчёта', 'error');
+    }
+
+    await loadData();
   }
 
   btn.classList.remove('saving');
   btn.textContent = 'Пересчитать заявку';
-
-  // Reload data
-  await loadData();
 }
 
 async function recalcPeaks() {
