@@ -52,6 +52,11 @@ body {
   line-height: 1.4; text-align: right;
   white-space: nowrap;
 }
+.header-date-from {
+  font-size: 10px; color: var(--text2);
+  line-height: 1.4; text-align: left;
+  white-space: nowrap;
+}
 
 /* Summary Cards */
 .summary {
@@ -310,23 +315,28 @@ body {
   animation: fadeIn 0.15s ease;
 }
 .wh-detail-row {
-  display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap;
+  display: flex; align-items: flex-start; gap: 8px;
 }
-.wh-peak-info { flex: 1; min-width: 160px; }
-.wh-peak-stats {
-  display: flex; gap: 16px; margin-bottom: 4px;
+.wh-peak-info { flex: 1; min-width: 0; }
+.wh-peak-header {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;
 }
-.wh-peak-stat { display: flex; flex-direction: column; align-items: center; }
-.wh-peak-stat .val { font-size: 18px; font-weight: 700; }
-.wh-peak-stat .lbl { font-size: 9px; text-transform: uppercase; color: var(--text2); letter-spacing: 0.3px; }
-.wh-peak-periods {
-  font-size: 11px; color: var(--text2); margin-top: 4px;
-  line-height: 1.4; word-break: break-word;
+.wh-peak-val { font-size: 18px; font-weight: 700; color: #e74c3c; }
+.wh-peak-lbl { font-size: 10px; color: var(--text2); }
+.wh-peak-list {
+  display: flex; flex-direction: column; gap: 2px;
+  font-size: 11px; margin-top: 2px;
 }
-.wh-peak-periods span { color: var(--text); font-weight: 500; }
+.wh-peak-list .peak-period { color: var(--text); font-weight: 500; line-height: 1.4; }
+.wh-peak-list .peak-more {
+  color: var(--accent); cursor: pointer; font-weight: 500; font-size: 10px;
+}
+.wh-peak-list .peak-period.hidden { display: none; }
+.wh-peak-nodata { font-size: 11px; color: rgba(255,255,255,0.25); margin-top: 2px; }
 .wh-detail-edit {
-  display: flex; align-items: center; gap: 6px; margin-left: auto; align-self: center;
-  background: rgba(255,255,255,0.04); border-radius: 8px; padding: 6px 10px;
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,0.04); border-radius: 8px; padding: 5px 8px;
+  flex-shrink: 0; align-self: flex-start;
 }
 .wh-detail-edit label { font-size: 11px; color: var(--text2); white-space: nowrap; }
 .wh-detail-edit input {
@@ -596,6 +606,7 @@ body {
 <div class="header">
   <div class="header-top">
     <div class="logo">Ferrum <span>| Заявка</span></div>
+    <div class="header-date-from" id="headerDateFrom"></div>
     <div style="display:flex;gap:8px;align-items:center">
       <div class="header-dates" id="headerDates"></div>
       <button class="settings-btn" id="settingsBtn" onclick="toggleSettings()">&#9881;</button>
@@ -619,10 +630,14 @@ body {
     <div class="settings-card">
       <button class="settings-close" onclick="toggleSettings()">&times;</button>
       <div class="settings-title">Параметры продаж</div>
-      <div class="settings-row" style="justify-content:space-between">
+      <div class="settings-row" style="justify-content:space-between;align-items:center;gap:6px">
         <div class="settings-pair" style="flex:0 0 auto">
+          <input type="number" class="settings-input" id="inp-daysBack" value="-" min="1" max="730" oninput="updateDateHints()" style="width:55px">
           <span class="settings-label">Назад</span>
-          <input type="number" class="settings-input" id="inp-daysBack" value="-" min="1" max="730" oninput="updateDateHints()">
+        </div>
+        <div class="settings-pair" style="flex:0 0 auto;justify-content:center">
+          <input type="number" class="settings-input" id="inp-orderVolume" value="" min="0" placeholder="м³" style="width:55px" oninput="updateOrderVolume()">
+          <span class="settings-label">м³</span>
         </div>
         <div class="settings-pair" style="flex:0 0 auto">
           <span class="settings-label">Вперёд</span>
@@ -633,14 +648,12 @@ body {
 
       <div class="settings-section">
         <div class="settings-title">Склады</div>
-        <div class="wh-grid" id="whGrid">
-          <!-- filled by JS -->
-        </div>
+        <div class="wh-grid" id="whGrid"></div>
       </div>
 
       <label class="settings-toggle">
-        <input type="checkbox" id="hideEmptyWh" onchange="hideEmptyWhChanged()">
-        Скрывать пустые склады в карточках
+        <input type="checkbox" id="hideUnselectedWh" onchange="hideUnselectedWhChanged()">
+        Скрывать невыбранные склады в карточках
       </label>
 
       <div class="settings-section">
@@ -670,7 +683,7 @@ body {
           </div>
         </div>
         <div class="settings-dates" id="peakInfo"></div>
-        <button class="settings-recalc" id="recalcPeaksBtn" onclick="recalcPeaks()" style="background:#e74c3c">Пересчитать пики (~2-3 мин)</button>
+        <button class="settings-recalc" id="recalcPeaksBtn" onclick="recalcPeaks()" style="background:linear-gradient(135deg,#c0392b,#e74c3c)">Пересчитать пики (~2-3 мин)</button>
       </div>
     </div>
   </div>
@@ -909,7 +922,7 @@ function renderList() {
           <div class="detail-cell"><div class="val" style="color:#fff;font-size:18px;font-weight:800" id="order-${i}">${r.order}</div><div class="lbl">Заказ</div></div>
           <div class="detail-cell"><div class="val" style="color:var(--text2)" id="wt-${i}">${r.weight ? r.weight.toFixed(1) : '0'}</div><div class="lbl">Вес кг</div></div>
           <div class="detail-cell"><div class="val" style="color:var(--text2)" id="vol-${i}">${r.volume ? r.volume.toFixed(3) : '0'}</div><div class="lbl">Объем м&sup3;</div></div>
-          <div class="detail-cell"><div class="val val-green" id="prc-${i}">${r.price ? r.price.toLocaleString('ru-RU') : '0'}</div><div class="lbl">РРЦ</div></div>
+          <div class="detail-cell" style="cursor:pointer" onclick="event.stopPropagation(); toggleCardPrice(${i})"><div class="val val-green" id="prc-${i}">${r.price ? (showDiscounted ? Math.round(r.price * (1 - discount / 100)).toLocaleString('ru-RU') : r.price.toLocaleString('ru-RU')) : '0'}</div><div class="lbl" id="prc-lbl-${i}">${showDiscounted ? '-' + discount + '%' : 'РРЦ'}</div></div>
         </div>
         <div class="wh-breakdown" id="whbd-${i}"></div>
         <div class="manual-edit">
@@ -1026,7 +1039,8 @@ function renderBreakdown(i) {
 
   rows.forEach(function(row, rowIdx) {
     const allZero = row.stock === 0 && row.min === 0 && row.sales === 0;
-    if (hideEmptyWarehouses && (allZero || row.off)) return;
+    if (hideEmptyWarehouses && allZero && !row.off) return;
+    if (hideUnselectedWarehouses && row.off) return;
     totStock += row.stock; totMin += row.min; totSales += row.sales;
     const cls = row.off ? 'wh-row-off' : (allZero ? 'wh-row-zero' : '');
     const whEsc = row.name.replace(/'/g, "\\'");
@@ -1079,14 +1093,25 @@ function toggleWhDetail(itemIdx, whName, trEl) {
 
   // Build peak info section
   let peakHtml = '<div class="wh-peak-info">';
-  peakHtml += '<div class="wh-peak-stats">';
-  peakHtml += '<div class="wh-peak-stat"><span class="val" style="color:#e74c3c">' + peak + '</span><span class="lbl">Пик (' + peakDays + 'д)</span></div>';
-  peakHtml += '</div>';
+  peakHtml += '<div class="wh-peak-header"><span class="wh-peak-val">' + peak + '</span><span class="wh-peak-lbl">пик (' + peakDays + 'д)</span></div>';
   if (peakPeriods) {
     const parts = peakPeriods.split(' / ');
-    peakHtml += '<div class="wh-peak-periods">' + parts.map(function(p) { return '<span>' + p + '</span>'; }).join(' &middot; ') + '</div>';
+    const maxShow = 4;
+    const uid = 'pk-' + itemIdx + '-' + Date.now();
+    peakHtml += '<div class="wh-peak-list" id="' + uid + '">';
+    parts.forEach(function(p, idx) {
+      if (idx < maxShow) {
+        peakHtml += '<div class="peak-period">' + p + '</div>';
+      } else {
+        peakHtml += '<div class="peak-period hidden" data-extra="' + uid + '">' + p + '</div>';
+      }
+    });
+    if (parts.length > maxShow) {
+      peakHtml += '<div class="peak-more" onclick="event.stopPropagation(); expandPeaks(\'' + uid + '\', this)">(+' + (parts.length - maxShow) + ' ещё)</div>';
+    }
+    peakHtml += '</div>';
   } else {
-    peakHtml += '<div class="wh-peak-periods" style="color:rgba(255,255,255,0.25)">нет данных — пересчитайте пики</div>';
+    peakHtml += '<div class="wh-peak-nodata">нет данных — пересчитайте пики</div>';
   }
   peakHtml += '</div>';
 
@@ -1257,6 +1282,7 @@ function showToast(msg, type) {
 
 // === SETTINGS ===
 let hideEmptyWarehouses = false;
+let hideUnselectedWarehouses = false;
 
 function toggleSettings() {
   const overlay = document.getElementById('settingsOverlay');
@@ -1265,8 +1291,32 @@ function toggleSettings() {
   btn.classList.toggle('active');
 }
 
-function hideEmptyWhChanged() {
-  hideEmptyWarehouses = document.getElementById('hideEmptyWh').checked;
+function hideUnselectedWhChanged() {
+  hideUnselectedWarehouses = document.getElementById('hideUnselectedWh').checked;
+}
+
+function expandPeaks(uid, el) {
+  document.querySelectorAll('[data-extra="' + uid + '"]').forEach(function(p) { p.classList.remove('hidden'); });
+  el.remove();
+}
+
+function toggleCardPrice(i) {
+  const r = filteredData[i];
+  if (!r || !r.price) return;
+  const valEl = document.getElementById('prc-' + i);
+  const lblEl = document.getElementById('prc-lbl-' + i);
+  if (!valEl || !lblEl) return;
+  if (lblEl.textContent === 'РРЦ') {
+    valEl.textContent = Math.round(r.price * (1 - discount / 100)).toLocaleString('ru-RU');
+    lblEl.textContent = '-' + discount + '%';
+  } else {
+    valEl.textContent = r.price.toLocaleString('ru-RU');
+    lblEl.textContent = 'РРЦ';
+  }
+}
+
+function updateOrderVolume() {
+  // placeholder for future use
 }
 
 function updateDiscount() {
@@ -1294,6 +1344,11 @@ function updateHeaderDates() {
   }
   document.getElementById('headerDates').innerHTML =
     '&#9668; ' + backFrom + '<br>&#9658; ' + fwdTo;
+  // Start date for peaks on the left
+  const dateFromEl = document.getElementById('headerDateFrom');
+  if (dateFromEl && params.dateFrom) {
+    dateFromEl.textContent = parseServerDate(params.dateFrom);
+  }
 }
 
 function formatDate(d) {
